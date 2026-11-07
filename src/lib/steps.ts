@@ -1,7 +1,7 @@
 // Pure step logic: validation, overlap handling and the "spread across today"
 // generator. No Health Connect calls in here, so it is easy to reason about.
 
-import { MINUTE, startOfToday } from './time';
+import { formatNumber, MINUTE, startOfToday } from './time';
 
 /** A time range in epoch milliseconds. `end` is exclusive. */
 export interface Range {
@@ -19,33 +19,36 @@ export const MAX_COUNT = 100_000;
 export const MAX_SANE_PACE = 200;
 
 export interface Validation {
+  /** Per-field messages, so the UI can show them under the right input. */
+  fields: { count?: string; start?: string; end?: string };
+  /** Same messages as a flat list (for the log). */
   errors: string[];
-  warnings: string[];
+  /** Steps per minute when the range is valid, else null. */
+  pace: number | null;
+  /** True when pace > MAX_SANE_PACE (allowed, but worth a warning). */
+  fastPace: boolean;
 }
 
+const BAD_TIME = 'Use "Today HH:MM" or YYYY-MM-DD HH:MM.';
+
 export function validateChunk(count: number, start: Date | null, end: Date | null, now = Date.now()): Validation {
-  const errors: string[] = [];
-  const warnings: string[] = [];
+  const fields: Validation['fields'] = {};
 
   if (!Number.isInteger(count) || count < MIN_COUNT || count > MAX_COUNT) {
-    errors.push(`Step count must be a whole number from ${MIN_COUNT} to ${MAX_COUNT}.`);
+    fields.count = `Whole number from ${MIN_COUNT} to ${formatNumber(MAX_COUNT)}.`;
   }
-  if (!start) errors.push('Start time is invalid (use YYYY-MM-DD HH:MM).');
-  if (!end) errors.push('End time is invalid (use YYYY-MM-DD HH:MM).');
-
+  if (!start) fields.start = BAD_TIME;
+  if (!end) fields.end = BAD_TIME;
   if (start && end) {
-    if (start.getTime() >= end.getTime()) errors.push('Start must be before end.');
+    if (start.getTime() >= end.getTime()) fields.start = 'Start must be before end.';
     // One minute of slack so "now" typed into the box doesn't fail by seconds.
-    if (end.getTime() > now + MINUTE) errors.push('End time is in the future.');
-    const minutes = (end.getTime() - start.getTime()) / MINUTE;
-    if (minutes > 0 && errors.length === 0) {
-      const pace = count / minutes;
-      if (pace > MAX_SANE_PACE) {
-        warnings.push(`Pace is ${Math.round(pace)} steps/min (above ~${MAX_SANE_PACE}). Allowed, but unrealistic.`);
-      }
-    }
+    else if (end.getTime() > now + MINUTE) fields.end = 'End is in the future.';
   }
-  return { errors, warnings };
+
+  const errors = Object.values(fields).filter((m): m is string => !!m);
+  let pace: number | null = null;
+  if (errors.length === 0 && start && end) pace = count / ((end.getTime() - start.getTime()) / MINUTE);
+  return { fields, errors, pace, fastPace: pace !== null && pace > MAX_SANE_PACE };
 }
 
 export function overlaps(a: Range, b: Range): boolean {

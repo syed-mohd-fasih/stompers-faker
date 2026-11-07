@@ -1,20 +1,18 @@
 {
   "expo": {
-    "name": "stompers-faker",
+    "name": "Stompers Faker",
     "slug": "stompers-faker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/brand/icon-1024.png",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/brand/adaptive-foreground-1024.png",
+        "backgroundColor": "#FF5A1F"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.stompersfaker",
@@ -26,7 +24,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/brand/icon-96.png"
     },
     "plugins": [
       "expo-router",
@@ -37,6 +35,30 @@
           "android": {
             "minSdkVersion": 26
           }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand/splash-logo-288.png",
+          "imageWidth": 200,
+          "backgroundColor": "#F7F6F2",
+          "dark": {
+            "backgroundColor": "#111113"
+          }
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Inter-Regular.ttf",
+            "./assets/fonts/Inter-Medium.ttf",
+            "./assets/fonts/Inter-SemiBold.ttf",
+            "./assets/fonts/Inter-Bold.ttf",
+            "./assets/fonts/SpaceGrotesk-Bold.ttf",
+            "./assets/fonts/JetBrainsMono-Regular.ttf"
+          ]
         }
       ]
     ],

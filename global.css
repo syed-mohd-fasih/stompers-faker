@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Stompers Faker theme. Values are space-separated RGB so Tailwind opacity (bg-primary/20) works. */
+:root {
+  --bg: 247 246 242;          /* #F7F6F2 */
+  --surface: 255 255 255;     /* #FFFFFF */
+  --surface-2: 239 237 231;   /* #EFEDE7 */
+  --text: 23 22 26;           /* #17161A */
+  --muted: 95 92 102;         /* #5F5C66 */
+  --border: 226 223 216;      /* #E2DFD8 */
+  --primary: 196 61 12;       /* #C43D0C  fake / main actions */
+  --primary-fg: 255 255 255;
+  --primary-soft: 253 231 220;
+  --primary-ink: 154 47 8;
+  --real: 37 87 214;          /* #2557D6  real sensor steps */
+  --real-soft: 227 235 253;
+  --warn: 143 69 0;
+  --warn-soft: 253 240 213;
+  --danger: 180 35 24;
+  --danger-soft: 253 228 225;
+  --ok: 21 122 60;
+  --ok-soft: 221 243 228;
+  --off-bg: 230 227 220;
+  --off-fg: 122 118 130;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: 17 17 19;
+    --surface: 27 27 31;
+    --surface-2: 38 38 44;
+    --text: 242 241 238;
+    --muted: 163 160 170;
+    --border: 48 48 55;
+    --primary: 255 122 69;     /* #FF7A45 */
+    --primary-fg: 26 10 3;
+    --primary-soft: 58 30 18;
+    --primary-ink: 255 176 143;
+    --real: 122 167 255;
+    --real-soft: 24 38 74;
+    --warn: 245 184 61;
+    --warn-soft: 51 39 12;
+    --danger: 255 138 128;
+    --danger-soft: 58 23 21;
+    --ok: 91 214 138;
+    --ok-soft: 18 48 30;
+    --off-bg: 42 42 48;
+    --off-fg: 140 137 148;
+  }
+}

@@ -42,3 +42,6 @@ yarn-error.*
 
 # local module build output
 modules/*/android/build/
+
+#handoff files
+handoff/

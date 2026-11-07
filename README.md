@@ -25,10 +25,25 @@ Health Connect, so they show up in Stompers.
   kept and written on a later run.
 - Status (last run / sync / delta / error) is in Settings. Logs: `adb logcat -s StepSync`.
 
+## UI / theme
+
+- **NativeWind 4** (Tailwind 3 classes on RN components). Theme colors are CSS variables in
+  `global.css` with a dark block under `prefers-color-scheme`, so the app follows the phone's
+  light/dark setting (`userInterfaceStyle: "automatic"`). Tokens: `bg`, `surface`, `fg`,
+  `fg-muted`, `line`, `primary` (fake), `real`, `warn`, `danger`, `ok`, `off`.
+- **Fonts are bundled in the APK** (`assets/fonts/`, linked by the `expo-font` config plugin,
+  OFL license in `assets/fonts/OFL.txt`). No runtime download. Each weight is its own family:
+  use `font-display` (Space Grotesk Bold), `font-sans`, `font-sans-medium`,
+  `font-sans-semibold`, `font-sans-bold` (Inter), `font-mono` (JetBrains Mono), not `font-bold`.
+- Shared components: `src/components/ui.tsx`. Icons: Feather from `@expo/vector-icons`.
+- Brand assets: `assets/brand/` (SVG sources + rendered icon, adaptive icon, splash logo).
+  Re-render after editing an SVG, e.g. `rsvg-convert -w 1024 -h 1024 assets/brand/adaptive-foreground.svg -o assets/brand/adaptive-foreground-1024.png`.
+
 ## Layout
 
 ```
 src/app/          screens (Expo Router)
+src/components/   shared NativeWind UI components
 src/lib/health.ts Health Connect wrapper
 src/lib/steps.ts  validation, overlap/auto-shift, "spread across today" generator
 src/lib/time.ts   date helpers

@@ -1,21 +1,31 @@
 // Settings: real-step sync (phone step counter → Health Connect). Off by default.
 
+import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Button, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { requestPermission } from 'react-native-health-connect';
+import { Button, Card, Icon, KeyValue, LogPanel, Pill, Title, usePalette, type Tone } from '@/components/ui';
+import { formatInput, formatNumber } from '@/lib/time';
+import { errMsg, useLog } from '@/lib/useLog';
 import * as StepSync from '../../modules/step-sync';
-import { formatClock, formatInput } from '@/lib/time';
 
-const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const fmt = (ms: number | null) => (ms ? `${formatInput(new Date(ms))}` : '—');
+const when = (ms: number | null) => (ms ? formatInput(new Date(ms)) : '—');
+
+/** One "✓ Enabled" style chip in the 2×2 status grid. */
+const Check = ({ ok, label }: { ok: boolean; label: string }) => (
+  <View className="flex-1 flex-row items-center gap-2 rounded-field bg-bg px-3 py-2.5">
+    <Icon name={ok ? 'check' : 'x'} size={16} className={ok ? 'text-ok' : 'text-danger'} />
+    <Text className="font-sans-medium text-[15px] text-fg">{label}</Text>
+  </View>
+);
 
 export default function Settings() {
   const [status, setStatus] = useState<StepSync.StepSyncStatus | null>(null);
-  const [log, setLog] = useState<string[]>([]);
-
-  const addLog = useCallback((msg: string) => {
-    setLog((l) => [`${formatClock(new Date())}  ${msg}`, ...l].slice(0, 50));
-  }, []);
+  const [busy, setBusy] = useState(false);
+  const log = useLog(50);
+  const addLog = log.add;
+  const palette = usePalette();
 
   const reload = useCallback(() => {
     try {
@@ -30,12 +40,15 @@ export default function Settings() {
   }, [reload]);
 
   const sync = async () => {
+    setBusy(true);
     try {
       addLog(await StepSync.syncNow());
     } catch (e) {
       addLog(`Sync failed: ${errMsg(e)}`);
+    } finally {
+      setBusy(false);
+      reload();
     }
-    reload();
   };
 
   const toggle = async (on: boolean) => {
@@ -61,50 +74,112 @@ export default function Settings() {
     }
   };
 
-  if (!StepSync.isAvailable) {
-    return <Text style={s.page}>StepSync native module missing. Rebuild with bunx expo run:android.</Text>;
-  }
+  const enabled = status?.enabled ?? false;
+  const health: { tone: Tone; label: string } = !enabled
+    ? { tone: 'neutral', label: 'Off' }
+    : status?.lastError
+      ? { tone: 'danger', label: 'Error' }
+      : status?.baselineSet
+        ? { tone: 'ok', label: 'Healthy' }
+        : { tone: 'warn', label: 'Starting' };
 
   return (
-    <ScrollView contentContainerStyle={s.page}>
-      <View style={s.row}>
-        <Text style={s.h}>Real-step sync</Text>
-        <Switch value={status?.enabled ?? false} onValueChange={toggle} />
-      </View>
-      <Text>Reads the phone&apos;s step counter every ~15 min and writes new steps to Health Connect,
-        even with the app closed. Fake and real records never overlap.</Text>
+    <SafeAreaView className="flex-1 bg-bg" edges={['top', 'left', 'right']}>
+      <ScrollView contentContainerClassName="gap-4 px-4 pb-12">
+        {/* Header */}
+        <View className="flex-row items-center gap-2 pt-3">
+          <Pressable
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            className="h-11 w-11 items-center justify-center active:opacity-60"
+          >
+            <Icon name="chevron-left" size={24} className="text-fg" />
+          </Pressable>
+          <Text className="font-display text-[22px] text-fg">Settings</Text>
+        </View>
 
-      <Text style={s.h}>Status</Text>
-      <Text>Enabled: {String(status?.enabled ?? false)}</Text>
-      <Text>Sensor available: {String(status?.sensorAvailable ?? '?')}</Text>
-      <Text>Activity permission: {String(status?.hasActivityPermission ?? '?')}</Text>
-      <Text>Baseline set: {String(status?.baselineSet ?? '?')}</Text>
-      <Text>Last run: {fmt(status?.lastRunTime ?? null)}</Text>
-      <Text>Last sync (write): {fmt(status?.lastSyncTime ?? null)}</Text>
-      <Text>Last delta: {status?.lastDelta ?? '—'}</Text>
-      <Text>Last message: {status?.lastMessage ?? '—'}</Text>
-      <Text style={s.err}>Last error: {status?.lastError ?? '—'}</Text>
-      <View style={s.row}>
-        <Button title="Sync now" onPress={sync} disabled={!status?.enabled} />
-        <Button title="Refresh status" onPress={reload} />
-      </View>
+        {!StepSync.isAvailable ? (
+          <Card>
+            <Text className="font-sans text-[15px] text-danger">
+              The StepSync native module is missing from this build. Rebuild with bunx expo run:android.
+            </Text>
+          </Card>
+        ) : (
+          <>
+            {/* Toggle */}
+            <Card>
+              <View className="flex-row items-center justify-between">
+                <Title>Real-step sync</Title>
+                <Switch
+                  value={enabled}
+                  onValueChange={toggle}
+                  trackColor={{ false: palette.track, true: palette.real }}
+                  thumbColor={palette.thumb}
+                  accessibilityLabel="Real-step sync"
+                />
+              </View>
+              <Text className="font-sans text-[15px] leading-[22px] text-fg-muted">
+                Reads the phone’s step counter about every 15 min and writes new steps to Health Connect, even with the app
+                closed. Real and fake records never overlap.
+              </Text>
+            </Card>
 
-      <Text style={s.note}>
-        On Huawei: Settings → Battery → App launch → this app → Manage manually, enable all 3 toggles, or
-        background sync will stop.
-      </Text>
+            {/* Status */}
+            <Card>
+              <View className="flex-row items-center justify-between">
+                <Title>Sync status</Title>
+                <Pill tone={health.tone} label={health.label} dot />
+              </View>
+              <View className="gap-2">
+                <View className="flex-row gap-2">
+                  <Check ok={enabled} label="Enabled" />
+                  <Check ok={status?.sensorAvailable ?? false} label="Sensor" />
+                </View>
+                <View className="flex-row gap-2">
+                  <Check ok={status?.hasActivityPermission ?? false} label="Activity perm." />
+                  <Check ok={status?.baselineSet ?? false} label="Baseline set" />
+                </View>
+              </View>
+              <View>
+                <KeyValue label="Last run" value={when(status?.lastRunTime ?? null)} />
+                <KeyValue label="Last write" value={when(status?.lastSyncTime ?? null)} />
+                <KeyValue
+                  label="Last delta"
+                  value={status?.lastDelta != null ? `+${formatNumber(status.lastDelta)} steps` : '—'}
+                  valueClass="text-real"
+                />
+                <KeyValue label="Message" value={status?.lastMessage ?? '—'} />
+                <KeyValue
+                  label="Last error"
+                  value={status?.lastError ?? 'None'}
+                  valueClass={status?.lastError ? 'text-danger' : 'text-fg-muted'}
+                />
+              </View>
+              <View className="flex-row gap-2.5">
+                <Button label={busy ? 'Syncing…' : 'Sync now'} variant="small-primary" onPress={sync} disabled={!enabled || busy} className="h-12 flex-1" />
+                <Button label="Refresh" variant="small" onPress={reload} className="h-12 flex-1" />
+              </View>
+            </Card>
 
-      <Text style={s.h}>Log</Text>
-      {log.map((l, i) => <Text key={i} style={s.log}>{l}</Text>)}
-    </ScrollView>
+            {/* Huawei note */}
+            <View className="flex-row gap-3 rounded-card bg-warn-soft p-4">
+              <Icon name="battery" size={18} className="mt-0.5 text-warn" />
+              <Text className="flex-1 font-sans text-[15px] leading-[22px] text-fg">
+                <Text className="font-sans-bold">Huawei phones: </Text>
+                Settings → Battery → App launch → Stompers Faker → Manage manually, then turn on all 3 toggles. Otherwise
+                background sync stops.
+              </Text>
+            </View>
+          </>
+        )}
+
+        {/* Log */}
+        <Card>
+          <Title>Log</Title>
+          <LogPanel lines={log.lines} />
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
-
-const s = StyleSheet.create({
-  page: { padding: 16, gap: 6, paddingBottom: 48 },
-  h: { fontWeight: 'bold', fontSize: 16, marginTop: 14 },
-  row: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' },
-  err: { color: '#b91c1c' },
-  note: { marginTop: 14, padding: 10, backgroundColor: '#fef3c7', borderRadius: 4 },
-  log: { fontFamily: 'monospace', fontSize: 12 },
-});
