@@ -20,6 +20,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "react-native-health-connect",
+      "expo-health-connect",
+      "expo-build-properties"
+    ]
   }
 }
