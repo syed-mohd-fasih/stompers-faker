@@ -74,19 +74,62 @@ unless something is really broken, because it forces a slow full rebuild.
 
 ## Release APK for sideloading
 
+Release builds are signed with a private keystore (not the debug key). The signing setup is
+in `plugins/withReleaseSigning.js` and reads `keystore.properties` in the project root
+(git-ignored):
+
+```properties
+storeFile=/home/<you>/.android/stompers-faker-release.jks
+storePassword=...
+keyAlias=stompers-faker
+keyPassword=...
+```
+
+**Back up the `.jks` and its password** (e.g. in a password manager). Android only installs
+an update over an app signed with the same key; losing it means uninstall + reinstall.
+
+### Build locally
+
 ```bash
 bunx expo prebuild --platform android
-cd android && ./gradlew assembleRelease
-# → android/app/build/outputs/apk/release/app-release.apk
+cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
 adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
-The generated project signs release builds with the debug keystore, which is fine for
-personal sideloading. If you ever switch to your own keystore, uninstall the old build
-first (Android refuses to update an app signed with a different key).
+Stop Metro/other heavy apps first (8 GB RAM). Without `keystore.properties` a release
+build fails on purpose instead of falling back to the debug key.
 
-To build only for the phone's ABI (faster, smaller):
-`./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a`
+### Versioning
+
+`version` in `app.json` (MAJOR.MINOR.PATCH) is the single source. `app.config.js` derives
+`versionCode = major*10000 + minor*100 + patch`, so each release installs over the last.
+
+### GitHub Releases (CI)
+
+`.github/workflows/release.yml` builds a signed arm64 APK and attaches it (plus a SHA-256)
+to a GitHub Release.
+
+```bash
+# 1. bump "version" in app.json, e.g. 1.0.1, then:
+git commit -am "Release v1.0.1"
+git tag v1.0.1
+git push origin main v1.0.1     # the tag push starts the build (~15–25 min)
+```
+
+The tag must match `app.json`'s version or the job fails. "Run workflow" in the Actions
+tab builds without releasing (APK is a downloadable artifact).
+
+One-time secrets setup (repo → Settings → Secrets and variables → Actions), or with `gh`:
+
+```bash
+base64 -w0 ~/.android/stompers-faker-release.jks | gh secret set ANDROID_KEYSTORE_BASE64
+gh secret set ANDROID_KEY_ALIAS --body stompers-faker
+grep storePassword keystore.properties | cut -d= -f2- | gh secret set ANDROID_KEYSTORE_PASSWORD
+grep keyPassword keystore.properties | cut -d= -f2- | gh secret set ANDROID_KEY_PASSWORD
+```
+
+On the phone: download the APK from the release page, open it, allow "install unknown
+apps" for the browser/file manager once. Updates install over the existing app.
 
 ## Troubleshooting
 
@@ -97,7 +140,7 @@ To build only for the phone's ABI (faster, smaller):
 - Make sure `android.permission.health.READ_STEPS` / `WRITE_STEPS` are in the generated
   `android/app/src/main/AndroidManifest.xml` (they come from `app.json` → `android.permissions`).
   If not, re-run prebuild.
-- Fallback: tap **Open HC settings** → App permissions → stompers-faker → allow Steps.
+- Fallback: tap **HC settings** → App permissions → Stompers Faker → allow Steps.
 
 **Health Connect "unavailable" or "update_required"**
 - On Android 12 (EMUI 14.2) Health Connect is the standalone APK

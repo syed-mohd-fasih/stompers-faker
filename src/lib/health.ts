@@ -17,7 +17,7 @@ import {
 import type { Chunk, Range } from './steps';
 
 /** Our own package name; used to filter Health Connect data by origin. */
-export const APP_PACKAGE = Constants.expoConfig?.android?.package ?? 'com.anonymous.stompersfaker';
+export const APP_PACKAGE = Constants.expoConfig?.android?.package ?? 'dev.fasih.stompersfaker';
 
 /** clientRecordId prefixes so we can tell our fake vs. real (sensor) records apart. */
 export const FAKE_PREFIX = 'fake-';

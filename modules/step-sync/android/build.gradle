@@ -11,6 +11,8 @@ android {
   defaultConfig {
     versionCode = 1
     versionName = "1.0.0"
+    // R8 keep rules for release builds of the app (see the file for why).
+    consumerProguardFiles "proguard-rules.pro"
   }
   lint {
     abortOnError = false

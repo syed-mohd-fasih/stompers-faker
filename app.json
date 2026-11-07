@@ -15,7 +15,7 @@
         "backgroundColor": "#FF5A1F"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.stompersfaker",
+      "package": "dev.fasih.stompersfaker",
       "permissions": [
         "android.permission.health.READ_STEPS",
         "android.permission.health.WRITE_STEPS",
@@ -60,7 +60,8 @@
             "./assets/fonts/JetBrainsMono-Regular.ttf"
           ]
         }
-      ]
+      ],
+      "./plugins/withReleaseSigning"
     ],
     "scheme": "stompersfaker"
   }

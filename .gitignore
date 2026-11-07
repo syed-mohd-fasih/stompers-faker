@@ -45,3 +45,5 @@ modules/*/android/build/
 
 #handoff files
 handoff/
+# release signing credentials (keystore lives outside the repo)
+keystore.properties
