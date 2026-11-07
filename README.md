@@ -124,8 +124,8 @@ One-time secrets setup (repo → Settings → Secrets and variables → Actions)
 ```bash
 base64 -w0 ~/.android/stompers-faker-release.jks | gh secret set ANDROID_KEYSTORE_BASE64
 gh secret set ANDROID_KEY_ALIAS --body stompers-faker
-grep storePassword keystore.properties | cut -d= -f2- | gh secret set ANDROID_KEYSTORE_PASSWORD
-grep keyPassword keystore.properties | cut -d= -f2- | gh secret set ANDROID_KEY_PASSWORD
+grep '^storePassword=' keystore.properties | cut -d= -f2- | tr -d '\n' | gh secret set ANDROID_KEYSTORE_PASSWORD
+grep '^keyPassword=' keystore.properties | cut -d= -f2- | tr -d '\n' | gh secret set ANDROID_KEY_PASSWORD
 ```
 
 On the phone: download the APK from the release page, open it, allow "install unknown
