@@ -1,0 +1,25 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.stepsync'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.stepsync"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+dependencies {
+  // Periodic background job (survives app close and reboots).
+  implementation "androidx.work:work-runtime-ktx:2.10.1"
+  // Same version react-native-health-connect uses, so Gradle doesn't juggle two.
+  implementation "androidx.health.connect:connect-client:1.1.0"
+}

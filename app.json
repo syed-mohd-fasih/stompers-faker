@@ -20,7 +20,9 @@
       "package": "com.anonymous.stompersfaker",
       "permissions": [
         "android.permission.health.READ_STEPS",
-        "android.permission.health.WRITE_STEPS"
+        "android.permission.health.WRITE_STEPS",
+        "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND",
+        "android.permission.ACTIVITY_RECOGNITION"
       ]
     },
     "web": {

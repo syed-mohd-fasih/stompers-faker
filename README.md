@@ -9,6 +9,21 @@ Health Connect, so they show up in Stompers.
 - **Overlaps:** before inserting, the app checks its own existing records in that
   window and offers *Auto-shift*, *Insert anyway* or *Cancel*.
 - Records get a `clientRecordId` prefix (`fake-` / `real-`) so the list can tell them apart.
+- **Settings → Real-step sync** (off by default): a local Kotlin module
+  (`modules/step-sync`) reads the phone's `TYPE_STEP_COUNTER` sensor from a WorkManager job
+  every ~15 min and writes the new steps to Health Connect, even with the app closed.
+
+### How real-step sync works
+
+- Enabling clears the baseline; the first run only stores the counter value and writes nothing.
+- Each run: delta = counter − last value (after a reboot the counter restarts at 0, so
+  delta = counter). Zero deltas are skipped. The record covers *last reading → now*.
+- Overlap with fake records is avoided by writing only into the free parts of that window.
+  The job tries to read this app's records itself (needs the optional *background read*
+  Health Connect permission); as a fallback the main screen mirrors today's fake ranges
+  into the native store every time it refreshes. If the whole window is taken, the steps are
+  kept and written on a later run.
+- Status (last run / sync / delta / error) is in Settings. Logs: `adb logcat -s StepSync`.
 
 ## Layout
 
@@ -17,6 +32,7 @@ src/app/          screens (Expo Router)
 src/lib/health.ts Health Connect wrapper
 src/lib/steps.ts  validation, overlap/auto-shift, "spread across today" generator
 src/lib/time.ts   date helpers
+modules/step-sync local Expo module (Kotlin): sensor reading, WorkManager job, HC writes
 ```
 
 ## Build & run (bun)
@@ -25,7 +41,8 @@ src/lib/time.ts   date helpers
 bun install
 bunx expo prebuild --platform android      # only after changing app.json / plugins / native deps
 bunx expo run:android                      # debug build onto the USB-connected phone
-bunx expo start                            # just the JS bundler (when the app is already installed)
+bun start                                  # JS bundler only (= expo start --dev-client); open the installed app
+                                           # don't use plain `expo start` + `a`: that tries to install Expo Go
 bunx tsc --noEmit && bunx expo lint        # typecheck + lint
 ```
 
@@ -66,9 +83,13 @@ To build only for the phone's ABI (faster, smaller):
   recent version of it. `update_required` means the installed APK is too old for the client library.
 - After installing/updating, tap **Re-check**.
 
-**Huawei kills the app in the background**
+**Huawei kills the app in the background / real-step sync stops**
 - Settings → Battery → App launch → stompers-faker → *Manage manually*, enable all 3 toggles
   (Auto-launch, Secondary launch, Run in background).
+- WorkManager's 15 min is a minimum; Android may run it later under Doze. Check
+  *Last run* in Settings, or `adb logcat -s StepSync`.
+- "Step counter gave no reading": some phones only report the counter while the screen is
+  on or after a new step; the next run usually works.
 
 **Gradle runs out of memory (8 GB machine)**
 - In `android/gradle.properties`, set `org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=512m`

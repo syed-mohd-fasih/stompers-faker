@@ -2,6 +2,7 @@
 // this app's records, and a log. Deliberately plain UI.
 
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'expo-router';
 import { Alert, Button, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   aggregateSteps,
@@ -16,6 +17,7 @@ import {
   type OwnRecord,
   type PermissionState,
 } from '@/lib/health';
+import { setBlockedRanges } from '../../modules/step-sync';
 import { autoShift, findOverlaps, spreadAcrossToday, validateChunk, type Chunk } from '@/lib/steps';
 import { formatClock, formatInput, formatTime, HOUR, MINUTE, parseInput, startOfToday } from '@/lib/time';
 
@@ -57,6 +59,8 @@ export default function Home() {
       const [t, recs] = await Promise.all([aggregateSteps(dayStart, now), readOwnRecords(dayStart, now)]);
       setTotal(t);
       setRecords(recs);
+      // Let the real-step background job know which times are taken by fake records.
+      setBlockedRanges(recs.filter((r) => r.kind !== 'real'));
     } catch (e) {
       addLog(`Refresh failed: ${errMsg(e)}`);
     }
@@ -183,6 +187,7 @@ export default function Home() {
 
   return (
     <ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
+      <Link href="/settings" style={s.link}>Settings (real-step sync) →</Link>
       <Text style={s.h}>Status</Text>
       <Text>Health Connect: {availability}</Text>
       {availability === 'unavailable' && <Text>Health Connect is not installed. Install the Health Connect APK.</Text>}
@@ -233,6 +238,7 @@ export default function Home() {
 }
 
 const s = StyleSheet.create({
+  link: { color: '#2563eb', fontSize: 16, paddingVertical: 4 },
   page: { padding: 16, gap: 6, paddingBottom: 48 },
   h: { fontWeight: 'bold', fontSize: 16, marginTop: 14 },
   row: { flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
