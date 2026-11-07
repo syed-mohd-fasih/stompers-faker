@@ -1,0 +1,17 @@
+diff --git a/dist/runtime/components.js b/dist/runtime/components.js
+index 7bb1ae4e2cb50301e5b63687c572509e70c921ba..6412496801d430d42e3c8928cae3b4dce619e0f3 100644
+--- a/dist/runtime/components.js
++++ b/dist/runtime/components.js
+@@ -31,10 +31,8 @@ const api_1 = require("./api");
+     columnWrapperClassName: "columnWrapperStyle",
+     contentContainerClassName: "contentContainerStyle",
+ });
+-(0, api_1.remapProps)(react_native_1.ImageBackground, {
+-    className: "style",
+-    imageClassName: "imageStyle",
+-});
++// Patched (stompers-faker): ImageBackground is deprecated in RN 0.88 and merely reading it
++// logs a warning on every app start. Not used by this app, so its className mapping is dropped.
+ (0, api_1.remapProps)(react_native_1.KeyboardAvoidingView, {
+     className: "style",
+     contentContainerClassName: "contentContainerStyle",

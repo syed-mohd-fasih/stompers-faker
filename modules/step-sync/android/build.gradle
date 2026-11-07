@@ -7,13 +7,13 @@ group = 'expo.modules.stepsync'
 version = '1.0.0'
 
 android {
-  namespace "expo.modules.stepsync"
+  namespace = "expo.modules.stepsync"
   defaultConfig {
-    versionCode 1
-    versionName "1.0.0"
+    versionCode = 1
+    versionName = "1.0.0"
   }
-  lintOptions {
-    abortOnError false
+  lint {
+    abortOnError = false
   }
 }
 

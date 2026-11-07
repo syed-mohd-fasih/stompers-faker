@@ -3,9 +3,11 @@
 // Note: font weights are separate families (font-sans-bold etc.), see tailwind.config.js.
 
 import Feather from '@expo/vector-icons/Feather';
-import { cssInterop, useColorScheme } from 'nativewind';
+import { router } from 'expo-router';
+import { cssInterop } from 'nativewind';
 import type { ComponentProps, ReactNode } from 'react';
-import { Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { Image, Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { useTheme } from '@/lib/theme';
 
 // Lets icons take a className like "text-primary" (mapped to their `color` prop).
 cssInterop(Feather, { className: { target: 'style', nativeStyleToProp: { color: true } } });
@@ -16,12 +18,35 @@ export const Icon = ({ name, size = 18, className }: { name: IconName; size?: nu
   <Feather name={name} size={size} className={className} />
 );
 
-/** Raw colors for the few native props that can't take a className (Switch, placeholder). */
-export function usePalette() {
-  const dark = useColorScheme().colorScheme === 'dark';
-  return dark
-    ? { muted: '#A3A0AA', real: '#7AA7FF', track: '#303037', thumb: '#F2F1EE' }
-    : { muted: '#5F5C66', real: '#2557D6', track: '#E2DFD8', thumb: '#FFFFFF' };
+/** Raw colors for the few native props that can't take a className (Switch, tab bar, ...). */
+export const usePalette = () => useTheme().palette;
+
+const appIcon = require('../../assets/brand/icon-96.png');
+
+/**
+ * Screen title row. `logo` shows the app icon (Home), `back` shows a back chevron,
+ * and tab screens get a settings gear on the right.
+ */
+export function ScreenHeader({ title, logo, back, settings = true }: { title: string; logo?: boolean; back?: boolean; settings?: boolean }) {
+  return (
+    <View className="flex-row items-center gap-3 px-1 pt-3">
+      {back ? (
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          className="-ml-2 h-11 w-11 items-center justify-center active:opacity-60"
+        >
+          <Icon name="chevron-left" size={24} className="text-fg" />
+        </Pressable>
+      ) : null}
+      {logo ? <Image source={appIcon} className="h-9 w-9 rounded-[10px]" accessibilityIgnoresInvertColors /> : null}
+      <Text className="flex-1 font-display text-[22px] text-fg" accessibilityRole="header">
+        {title}
+      </Text>
+      {settings ? <IconButton icon="settings" label="App settings" onPress={() => router.push('/settings')} /> : null}
+    </View>
+  );
 }
 
 export const Card = ({ children }: { children: ReactNode }) => (

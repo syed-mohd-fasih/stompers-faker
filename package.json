@@ -34,5 +34,8 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit"
   },
-  "private": true
+  "private": true,
+  "patchedDependencies": {
+    "react-native-css-interop@0.2.7": "patches/react-native-css-interop@0.2.7.patch"
+  }
 }

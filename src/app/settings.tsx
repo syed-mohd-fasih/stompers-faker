@@ -1,183 +1,108 @@
-// Settings: real-step sync (phone step counter → Health Connect). Off by default.
+// App settings: appearance (System/Light/Dark), accent color, and about.
 
-import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import Constants from 'expo-constants';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { requestPermission } from 'react-native-health-connect';
-import { Button, Card, Icon, KeyValue, LogPanel, Pill, Title, usePalette, type Tone } from '@/components/ui';
-import { formatInput, formatNumber } from '@/lib/time';
-import { errMsg, useLog } from '@/lib/useLog';
-import * as StepSync from '../../modules/step-sync';
+import { Card, Icon, KeyValue, ScreenHeader, Title } from '@/components/ui';
+import { useApp } from '@/lib/app-state';
+import { ACCENTS, accentHex, useTheme, type Accent, type ThemeMode } from '@/lib/theme';
 
-const when = (ms: number | null) => (ms ? formatInput(new Date(ms)) : '—');
+const MODES: { value: ThemeMode; label: string; icon: 'smartphone' | 'sun' | 'moon' }[] = [
+  { value: 'system', label: 'System', icon: 'smartphone' },
+  { value: 'light', label: 'Light', icon: 'sun' },
+  { value: 'dark', label: 'Dark', icon: 'moon' },
+];
 
-/** One "✓ Enabled" style chip in the 2×2 status grid. */
-const Check = ({ ok, label }: { ok: boolean; label: string }) => (
-  <View className="flex-1 flex-row items-center gap-2 rounded-field bg-bg px-3 py-2.5">
-    <Icon name={ok ? 'check' : 'x'} size={16} className={ok ? 'text-ok' : 'text-danger'} />
-    <Text className="font-sans-medium text-[15px] text-fg">{label}</Text>
-  </View>
-);
+const appIcon = require('../../assets/brand/icon-96.png');
 
-export default function Settings() {
-  const [status, setStatus] = useState<StepSync.StepSyncStatus | null>(null);
-  const [busy, setBusy] = useState(false);
-  const log = useLog(50);
-  const addLog = log.add;
-  const palette = usePalette();
-
-  const reload = useCallback(() => {
-    try {
-      setStatus(StepSync.getStatus());
-    } catch (e) {
-      addLog(errMsg(e));
-    }
-  }, [addLog]);
-
-  useEffect(() => {
-    Promise.resolve().then(reload);
-  }, [reload]);
-
-  const sync = async () => {
-    setBusy(true);
-    try {
-      addLog(await StepSync.syncNow());
-    } catch (e) {
-      addLog(`Sync failed: ${errMsg(e)}`);
-    } finally {
-      setBusy(false);
-      reload();
-    }
-  };
-
-  const toggle = async (on: boolean) => {
-    try {
-      if (on) {
-        if (!(await StepSync.requestActivityPermission())) {
-          addLog('Physical activity permission denied; sync not enabled.');
-          return;
-        }
-        // Optional: lets the background job read our own records to avoid overlaps.
-        // If Health Connect doesn't offer it, the app's mirrored ranges are used instead.
-        await requestPermission([{ accessType: 'read', recordType: 'BackgroundAccessPermission' }]).catch(() => {});
-        StepSync.enableSync();
-        addLog('Sync enabled.');
-        await sync(); // stores the baseline right away
-      } else {
-        StepSync.disableSync();
-        addLog('Sync disabled.');
-        reload();
-      }
-    } catch (e) {
-      addLog(errMsg(e));
-    }
-  };
-
-  const enabled = status?.enabled ?? false;
-  const health: { tone: Tone; label: string } = !enabled
-    ? { tone: 'neutral', label: 'Off' }
-    : status?.lastError
-      ? { tone: 'danger', label: 'Error' }
-      : status?.baselineSet
-        ? { tone: 'ok', label: 'Healthy' }
-        : { tone: 'warn', label: 'Starting' };
+export default function AppSettings() {
+  const { mode, setMode, accent, setAccent, scheme } = useTheme();
+  const { openHcSettings } = useApp();
+  const cfg = Constants.expoConfig;
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerClassName="gap-4 px-4 pb-12">
-        {/* Header */}
-        <View className="flex-row items-center gap-2 pt-3">
-          <Pressable
-            onPress={() => router.back()}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            className="h-11 w-11 items-center justify-center active:opacity-60"
-          >
-            <Icon name="chevron-left" size={24} className="text-fg" />
-          </Pressable>
-          <Text className="font-display text-[22px] text-fg">Settings</Text>
-        </View>
+    <SafeAreaView className="flex-1 bg-bg" edges={['top', 'left', 'right', 'bottom']}>
+      <ScrollView contentContainerClassName="gap-4 px-4 pb-8">
+        <ScreenHeader title="Settings" back settings={false} />
 
-        {!StepSync.isAvailable ? (
-          <Card>
-            <Text className="font-sans text-[15px] text-danger">
-              The StepSync native module is missing from this build. Rebuild with bunx expo run:android.
-            </Text>
-          </Card>
-        ) : (
-          <>
-            {/* Toggle */}
-            <Card>
-              <View className="flex-row items-center justify-between">
-                <Title>Real-step sync</Title>
-                <Switch
-                  value={enabled}
-                  onValueChange={toggle}
-                  trackColor={{ false: palette.track, true: palette.real }}
-                  thumbColor={palette.thumb}
-                  accessibilityLabel="Real-step sync"
-                />
-              </View>
-              <Text className="font-sans text-[15px] leading-[22px] text-fg-muted">
-                Reads the phone’s step counter about every 15 min and writes new steps to Health Connect, even with the app
-                closed. Real and fake records never overlap.
-              </Text>
-            </Card>
-
-            {/* Status */}
-            <Card>
-              <View className="flex-row items-center justify-between">
-                <Title>Sync status</Title>
-                <Pill tone={health.tone} label={health.label} dot />
-              </View>
-              <View className="gap-2">
-                <View className="flex-row gap-2">
-                  <Check ok={enabled} label="Enabled" />
-                  <Check ok={status?.sensorAvailable ?? false} label="Sensor" />
-                </View>
-                <View className="flex-row gap-2">
-                  <Check ok={status?.hasActivityPermission ?? false} label="Activity perm." />
-                  <Check ok={status?.baselineSet ?? false} label="Baseline set" />
-                </View>
-              </View>
-              <View>
-                <KeyValue label="Last run" value={when(status?.lastRunTime ?? null)} />
-                <KeyValue label="Last write" value={when(status?.lastSyncTime ?? null)} />
-                <KeyValue
-                  label="Last delta"
-                  value={status?.lastDelta != null ? `+${formatNumber(status.lastDelta)} steps` : '—'}
-                  valueClass="text-real"
-                />
-                <KeyValue label="Message" value={status?.lastMessage ?? '—'} />
-                <KeyValue
-                  label="Last error"
-                  value={status?.lastError ?? 'None'}
-                  valueClass={status?.lastError ? 'text-danger' : 'text-fg-muted'}
-                />
-              </View>
-              <View className="flex-row gap-2.5">
-                <Button label={busy ? 'Syncing…' : 'Sync now'} variant="small-primary" onPress={sync} disabled={!enabled || busy} className="h-12 flex-1" />
-                <Button label="Refresh" variant="small" onPress={reload} className="h-12 flex-1" />
-              </View>
-            </Card>
-
-            {/* Huawei note */}
-            <View className="flex-row gap-3 rounded-card bg-warn-soft p-4">
-              <Icon name="battery" size={18} className="mt-0.5 text-warn" />
-              <Text className="flex-1 font-sans text-[15px] leading-[22px] text-fg">
-                <Text className="font-sans-bold">Huawei phones: </Text>
-                Settings → Battery → App launch → Stompers Faker → Manage manually, then turn on all 3 toggles. Otherwise
-                background sync stops.
-              </Text>
-            </View>
-          </>
-        )}
-
-        {/* Log */}
+        {/* Appearance */}
         <Card>
-          <Title>Log</Title>
-          <LogPanel lines={log.lines} />
+          <Title>Appearance</Title>
+          <View className="flex-row gap-1 rounded-[14px] bg-surface-2 p-1" accessibilityRole="radiogroup">
+            {MODES.map((m) => {
+              const on = m.value === mode;
+              return (
+                <Pressable
+                  key={m.value}
+                  onPress={() => setMode(m.value)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                  className={`h-11 flex-1 flex-row items-center justify-center gap-1.5 rounded-[11px] ${on ? 'bg-surface' : ''}`}
+                >
+                  <Icon name={m.icon} size={16} className={on ? 'text-primary' : 'text-fg-muted'} />
+                  <Text className={`font-sans-semibold text-[15px] ${on ? 'text-fg' : 'text-fg-muted'}`}>{m.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Card>
+
+        {/* Accent */}
+        <Card>
+          <Title>Accent color</Title>
+          <Text className="font-sans text-[14px] text-fg-muted">Used for buttons and fake records. Real records stay blue.</Text>
+          <View className="flex-row justify-between" accessibilityRole="radiogroup">
+            {(Object.keys(ACCENTS) as Accent[]).map((a) => {
+              const on = a === accent;
+              return (
+                <Pressable
+                  key={a}
+                  onPress={() => setAccent(a)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={ACCENTS[a].label}
+                  className="items-center gap-1.5"
+                >
+                  <View className={`h-14 w-14 items-center justify-center rounded-full border-2 ${on ? 'border-fg' : 'border-transparent'}`}>
+                    <View className="h-11 w-11 items-center justify-center rounded-full" style={{ backgroundColor: accentHex(a, scheme) }}>
+                      {on ? <Icon name="check" size={20} className="text-primary-fg" /> : null}
+                    </View>
+                  </View>
+                  <Text className={`font-sans-medium text-[13px] ${on ? 'text-fg' : 'text-fg-muted'}`}>{ACCENTS[a].label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Card>
+
+        {/* Health Connect shortcut */}
+        <Card>
+          <Title>Health Connect</Title>
+          <Pressable onPress={openHcSettings} accessibilityRole="button" className="flex-row items-center gap-3 active:opacity-70">
+            <Icon name="heart" className="text-primary" />
+            <Text className="flex-1 font-sans-medium text-[15px] text-fg">Open Health Connect settings</Text>
+            <Icon name="external-link" size={16} className="text-fg-muted" />
+          </Pressable>
+        </Card>
+
+        {/* About */}
+        <Card>
+          <View className="flex-row items-center gap-3">
+            <Image source={appIcon} className="h-12 w-12 rounded-[12px]" accessibilityIgnoresInvertColors />
+            <View className="flex-1">
+              <Text className="font-display text-xl text-fg">Stompers Faker</Text>
+              <Text className="font-sans text-[14px] text-fg-muted">Version {cfg?.version ?? '?'}</Text>
+            </View>
+          </View>
+          <Text className="font-sans text-[15px] leading-[22px] text-fg-muted">
+            Personal tool that writes Steps records to Health Connect, so Stompers can read them. Fake steps are added by hand;
+            real steps come from the phone’s step counter.
+          </Text>
+          <View>
+            <KeyValue label="Package" value={cfg?.android?.package ?? '?'} />
+            <KeyValue label="Expo SDK" value={cfg?.sdkVersion ?? '?'} />
+            <KeyValue label="Build" value={__DEV__ ? 'Debug' : 'Release'} />
+          </View>
         </Card>
       </ScrollView>
     </SafeAreaView>

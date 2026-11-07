@@ -1,52 +1,21 @@
-// Main screen: Health Connect status, fake-step injection, today's total,
-// this app's records, and a log.
+// Home tab: today's total, Health Connect status, and fake-step injection.
 
-import { router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  Banner,
-  Button,
-  Card,
-  Field,
-  Icon,
-  IconButton,
-  LogPanel,
-  Pill,
-  Sheet,
-  Tag,
-  TextButton,
-  Title,
-  type Tone,
-} from '@/components/ui';
-import {
-  aggregateSteps,
-  checkAvailability,
-  deleteRecord,
-  getPermissionState,
-  insertChunks,
-  openHealthConnectSettings,
-  readOwnRecords,
-  requestStepsPermissions,
-  type Availability,
-  type OwnRecord,
-  type PermissionState,
-} from '@/lib/health';
+import { Banner, Button, Card, Field, Icon, Pill, ScreenHeader, Sheet, TextButton, Title, type Tone } from '@/components/ui';
+import { useApp, type HcStatus } from '@/lib/app-state';
+import { insertChunks, readOwnRecords, type PermissionState } from '@/lib/health';
 import { autoShift, findOverlaps, MAX_SANE_PACE, spreadAcrossToday, validateChunk, type Range } from '@/lib/steps';
 import { formatInput, formatNumber, formatTime, HOUR, MINUTE, parseInput, startOfToday } from '@/lib/time';
-import { errMsg, useLog } from '@/lib/useLog';
-import { setBlockedRanges } from '../../modules/step-sync';
+import { errMsg } from '@/lib/useLog';
 
-type Status = Availability | 'error' | 'checking';
 type OverlapChoice = 'shift' | 'anyway' | 'cancel';
 
-const icon = require('../../assets/brand/icon-96.png');
 const span = (r: Range) => `${formatTime(new Date(r.start))}–${formatTime(new Date(r.end))}`;
 
 /** Status pill + optional banner for each Health Connect state. */
-function describe(status: Status, perms: PermissionState) {
-  const ready = status === 'available' && perms.read && perms.write;
+function describe(status: HcStatus, perms: PermissionState, ready: boolean) {
   const pill: { tone: Tone; label: string } =
     status === 'checking' ? { tone: 'neutral', label: 'Checking…' }
     : ready ? { tone: 'ok', label: 'Health Connect ready' }
@@ -57,31 +26,27 @@ function describe(status: Status, perms: PermissionState) {
   const banner =
     status === 'unavailable' ? { title: 'Health Connect isn’t installed.', text: 'Install the Health Connect APK, then tap Re-check.' }
     : status === 'update_required' ? { title: 'Health Connect needs an update.', text: 'Install a newer Health Connect APK, then tap Re-check.' }
-    : status === 'error' ? { title: 'Couldn’t reach Health Connect.', text: 'See the log below, then tap Re-check.' }
+    : status === 'error' ? { title: 'Couldn’t reach Health Connect.', text: 'See the Logs tab, then tap Re-check.' }
     : null;
-  return { ready, pill, banner };
+  return { pill, banner };
 }
 
 export default function Home() {
-  const [status, setStatus] = useState<Status>('checking');
-  const [perms, setPerms] = useState<PermissionState>({ read: false, write: false });
+  const { status, perms, ready, total, refresh, checkStatus, grant, openHcSettings, log } = useApp();
+  const addLog = log.add;
   const [count, setCount] = useState('1000');
   const [startText, setStartText] = useState(() => formatInput(new Date(Date.now() - HOUR)));
   const [endText, setEndText] = useState(() => formatInput(new Date()));
-  const [total, setTotal] = useState<number | null>(null);
-  const [records, setRecords] = useState<OwnRecord[]>([]);
   const [busy, setBusy] = useState(false);
-  const log = useLog(100);
-  const addLog = log.add;
 
   // Overlap bottom sheet: what it shows, and the pending promise it resolves.
-  const [overlap, setOverlap] = useState<{ count: number; hits: Range[] } | null>(null);
+  const [overlap, setOverlap] = useState<Range[] | null>(null);
   const overlapResolve = useRef<((c: OverlapChoice) => void) | null>(null);
 
   const askOverlap = (hits: Range[]) =>
     new Promise<OverlapChoice>((resolve) => {
       overlapResolve.current = resolve;
-      setOverlap({ count: hits.length, hits });
+      setOverlap(hits);
     });
 
   const answerOverlap = (choice: OverlapChoice) => {
@@ -90,65 +55,7 @@ export default function Home() {
     setOverlap(null);
   };
 
-  const { ready, pill, banner } = describe(status, perms);
-
-  /** Reloads today's aggregate total and this app's records. */
-  const refresh = useCallback(async () => {
-    const now = Date.now();
-    const dayStart = startOfToday().getTime();
-    try {
-      const [t, recs] = await Promise.all([aggregateSteps(dayStart, now), readOwnRecords(dayStart, now)]);
-      setTotal(t);
-      setRecords(recs);
-      // Let the real-step background job know which times are taken by fake records.
-      setBlockedRanges(recs.filter((r) => r.kind !== 'real'));
-    } catch (e) {
-      addLog(`Refresh failed: ${errMsg(e)}`);
-    }
-  }, [addLog]);
-
-  /** Checks availability + permissions, and refreshes data if everything is OK. */
-  const checkStatus = useCallback(async () => {
-    try {
-      const a = await checkAvailability();
-      setStatus(a);
-      addLog(`Health Connect: ${a}`);
-      if (a !== 'available') return;
-      const p = await getPermissionState();
-      setPerms(p);
-      addLog(`Permissions: read ${p.read ? '✓' : '✗'} write ${p.write ? '✓' : '✗'}`);
-      if (p.read && p.write) await refresh();
-    } catch (e) {
-      setStatus('error');
-      addLog(`Status check failed: ${errMsg(e)}`);
-    }
-  }, [addLog, refresh]);
-
-  // Check once on mount. (Started from a microtask: all state updates happen
-  // after awaits anyway, this just keeps the hooks linter happy.)
-  useEffect(() => {
-    Promise.resolve().then(checkStatus);
-  }, [checkStatus]);
-
-  const grant = async () => {
-    try {
-      const p = await requestStepsPermissions();
-      setPerms(p);
-      addLog(`Granted: read ${p.read ? '✓' : '✗'} write ${p.write ? '✓' : '✗'}`);
-      if (p.read && p.write) await refresh();
-      else addLog('Warning: not all permissions granted. If no dialog appeared, use HC settings.');
-    } catch (e) {
-      addLog(`Permission request failed: ${errMsg(e)}`);
-    }
-  };
-
-  const openSettings = () => {
-    try {
-      openHealthConnectSettings();
-    } catch (e) {
-      addLog(`Open HC settings failed: ${errMsg(e)}`);
-    }
-  };
+  const { pill, banner } = describe(status, perms, ready);
 
   /**
    * Validates, checks for overlaps with this app's records (fake and real),
@@ -226,31 +133,15 @@ export default function Home() {
     }
   };
 
-  const remove = async (r: OwnRecord) => {
-    try {
-      await deleteRecord(r.id);
-      addLog(`Deleted ${r.count} steps (${span(r)})`);
-      await refresh();
-    } catch (e) {
-      addLog(`Delete failed: ${errMsg(e)}`);
-    }
-  };
-
   // Live validation for the form.
   const n = Number(count);
   const v = validateChunk(n, parseInput(startText), parseInput(endText));
   const countOk = !v.fields.count;
-  const sorted = [...records].sort((a, b) => b.start - a.start); // newest first
 
   return (
     <SafeAreaView className="flex-1 bg-bg" edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerClassName="gap-4 px-4 pb-12" keyboardShouldPersistTaps="handled">
-        {/* Header */}
-        <View className="flex-row items-center gap-3 px-1 pt-3">
-          <Image source={icon} className="h-9 w-9 rounded-[10px]" accessibilityIgnoresInvertColors />
-          <Text className="flex-1 font-display text-[22px] text-fg">Stompers Faker</Text>
-          <IconButton icon="sliders" label="Settings" onPress={() => router.push('/settings')} />
-        </View>
+      <ScrollView contentContainerClassName="gap-4 px-4 pb-8" keyboardShouldPersistTaps="handled">
+        <ScreenHeader title="Stompers Faker" logo />
 
         {/* Today + Health Connect status */}
         <Card>
@@ -298,7 +189,7 @@ export default function Home() {
               onPress={checkStatus}
               className="flex-1"
             />
-            <Button label="HC settings" variant="small" onPress={openSettings} className="flex-[1.3]" />
+            <Button label="HC settings" variant="small" onPress={openHcSettings} className="flex-[1.3]" />
           </View>
         </Card>
 
@@ -341,50 +232,6 @@ export default function Home() {
             </>
           )}
         </Card>
-
-        {/* This app's records */}
-        {ready ? (
-          <Card>
-            <View className="flex-row items-center justify-between">
-              <Text className="font-display text-xl text-fg">
-                Today’s records <Text className="text-fg-muted">{records.length}</Text>
-              </Text>
-              <IconButton icon="refresh-cw" label="Refresh" onPress={refresh} />
-            </View>
-            {sorted.length === 0 ? (
-              <Text className="border-t border-line pt-3 font-sans text-[14px] text-fg-muted">No records from this app today.</Text>
-            ) : (
-              sorted.map((r) => (
-                <View key={r.id} className="flex-row items-center gap-3 border-t border-line pt-3">
-                  <View className="flex-1">
-                    <Text className="font-display text-lg text-fg">{formatNumber(r.count)}</Text>
-                    <Text className="font-mono text-[13px] text-fg-muted">
-                      {formatTime(new Date(r.start))} – {formatTime(new Date(r.end))}
-                    </Text>
-                  </View>
-                  <Tag kind={r.kind} />
-                  <Pressable
-                    onPress={() => remove(r)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Delete ${r.count} steps`}
-                    className="h-10 w-10 items-center justify-center active:opacity-60"
-                  >
-                    <Icon name="trash-2" className="text-danger" />
-                  </Pressable>
-                </View>
-              ))
-            )}
-          </Card>
-        ) : null}
-
-        {/* Log */}
-        <Card>
-          <View className="flex-row items-center justify-between">
-            <Title>Log</Title>
-            <TextButton label="Clear" onPress={log.clear} />
-          </View>
-          <LogPanel lines={log.lines} />
-        </Card>
       </ScrollView>
 
       {/* Overlap prompt */}
@@ -394,9 +241,9 @@ export default function Home() {
         </View>
         <Text className="font-display text-[26px] text-fg">That overlaps a record</Text>
         <Text className="font-sans text-[15px] leading-[22px] text-fg-muted">
-          {overlap?.count === 1 ? '1 of this app’s records already covers' : `${overlap?.count ?? 0} of this app’s records already cover`} part of{' '}
-          <Text className="font-mono text-fg">{overlap ? overlap.hits.map(span).join(', ') : ''}</Text>. Auto-shift moves the new one to the
-          next free slot.
+          {overlap?.length === 1 ? '1 of this app’s records already covers' : `${overlap?.length ?? 0} of this app’s records already cover`} part of{' '}
+          <Text className="font-mono text-fg">{overlap ? overlap.map(span).join(', ') : ''}</Text>. Auto-shift moves the new one to the next
+          free slot.
         </Text>
         <Button label="Auto-shift" onPress={() => answerOverlap('shift')} />
         <Button label="Insert anyway" variant="secondary" onPress={() => answerOverlap('anyway')} />

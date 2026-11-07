@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { LogLine } from '@/components/ui';
 import { formatClock } from './time';
 
@@ -19,7 +19,7 @@ export function useLog(max = 100) {
   );
 
   const clear = useCallback(() => setLines([]), []);
-  return { lines, add, clear };
+  return useMemo(() => ({ lines, add, clear }), [lines, add, clear]);
 }
 
 export const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));

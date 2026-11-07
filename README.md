@@ -35,6 +35,13 @@ Health Connect, so they show up in Stompers.
   OFL license in `assets/fonts/OFL.txt`). No runtime download. Each weight is its own family:
   use `font-display` (Space Grotesk Bold), `font-sans`, `font-sans-medium`,
   `font-sans-semibold`, `font-sans-bold` (Inter), `font-mono` (JetBrains Mono), not `font-bold`.
+- Screens: bottom tabs Home / Records / Sync / Logs (`src/app/(tabs)/`), plus App settings
+  (`src/app/settings.tsx`: System/Light/Dark, accent color, about). Theme choice is saved to
+  `prefs.json` in the app's document directory (`src/lib/theme.tsx`). Shared state (log, HC
+  status, records) lives in `src/lib/app-state.tsx`.
+- `patches/`: a `bun patch` for `react-native-css-interop` (NativeWind) that stops it touching
+  RN's deprecated `ImageBackground`, which logged a warning on every start. Re-applied
+  automatically by `bun install`; drop it once NativeWind ships a fix.
 - Shared components: `src/components/ui.tsx`. Icons: Feather from `@expo/vector-icons`.
 - Brand assets: `assets/brand/` (SVG sources + rendered icon, adaptive icon, splash logo).
   Re-render after editing an SVG, e.g. `rsvg-convert -w 1024 -h 1024 assets/brand/adaptive-foreground.svg -o assets/brand/adaptive-foreground-1024.png`.

@@ -5,7 +5,10 @@ module.exports = {
   content: ['./src/**/*.{js,jsx,ts,tsx}'],
   // `presets` gives NativeWind's RN defaults; colors below read the CSS variables in global.css.
   presets: [require('nativewind/preset')],
-  darkMode: 'media', // follows the phone's system theme via global.css
+  // 'class' only so NativeWind allows colorScheme.set() (System/Light/Dark in Settings).
+  // The colors themselves still switch via the prefers-color-scheme block in global.css,
+  // which follows the forced scheme because colorScheme.set() goes through Appearance.
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
