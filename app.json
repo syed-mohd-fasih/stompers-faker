@@ -16,15 +16,15 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.stompersfaker"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "react-native-health-connect",
-      "expo-health-connect",
-      "expo-build-properties"
+      ["expo-build-properties", { "android": { "minSdkVersion": 26 } }]
     ]
   }
 }
