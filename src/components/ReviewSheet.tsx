@@ -15,11 +15,14 @@ const Ctx = createContext<Review | null>(null);
 
 const MAX_ROWS = 40;
 
+/** "Today 20:41–21:09", or "Yesterday 18:16 → Today 05:58" across midnight. */
 const when = (start: number, end: number) => {
   const s = new Date(start);
-  const sameDay = new Date(end).toDateString() === s.toDateString();
-  return `${formatInput(s)}${sameDay ? '' : ' →'}–${formatTime(new Date(end))}`;
+  const e = new Date(end);
+  return s.toDateString() === e.toDateString() ? `${formatInput(s)}–${formatTime(e)}` : `${formatInput(s)} → ${formatInput(e)}`;
 };
+
+const records = (n: number) => `${n} record${n === 1 ? '' : 's'}`;
 
 function Row({ sign, start, end, count, label }: { sign: '+' | '−'; start: number; end: number; count: number; label?: string }) {
   return (
@@ -73,8 +76,8 @@ export function ReviewProvider({ children }: { children: ReactNode }) {
                 </Text>
               ) : (
                 <>
-                  <Text className="font-sans-semibold text-[15px] text-danger">−{cs.deletes.length} records</Text>
-                  <Text className="font-sans-semibold text-[15px] text-ok">+{cs.inserts.length} records</Text>
+                  <Text className="font-sans-semibold text-[15px] text-danger">−{records(cs.deletes.length)}</Text>
+                  <Text className="font-sans-semibold text-[15px] text-ok">+{records(cs.inserts.length)}</Text>
                   <Text className="font-sans text-[15px] text-fg-muted">
                     This app’s steps: {formatNumber(cs.ownBefore)} → {formatNumber(ownAfter(cs))}
                   </Text>

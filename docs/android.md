@@ -41,7 +41,8 @@ needed. Declares `REQUEST_INSTALL_PACKAGES`.
 
 - Apps can only delete or modify their own records.
 - Android 12/13 standalone Health Connect: apps can read about **30 days** back. This is
-  why `LOOKBACK_MS` is 30 days on Android (snapshots, "delete all", undo reach that far).
+  why `LOOKBACK_MS` is 29 days on Android; `readOwnRecords` adds one day so records that
+  started before a range are found, which makes 30 (snapshots, "delete all", undo reach that far).
 - `getSdkStatus()` = `update_required` means the installed Health Connect is too old for
   the client library: sideload a newer Health Connect APK.
 

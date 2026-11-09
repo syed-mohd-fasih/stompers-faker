@@ -39,9 +39,17 @@ const kindOf = (clientId: string): RecordKind =>
 
 const toOwn = (r: StepRecord): OwnRecord => ({ ...r, kind: kindOf(r.clientId) });
 
-/** Step records written by THIS app that touch [start, end]. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Step records written by THIS app that overlap [start, end].
+ * Health Connect's read filter skips records that *start* before the range (e.g. one
+ * running from yesterday 18:00 into today), so read a day earlier and keep everything
+ * that overlaps. (HealthKit already returns overlapping samples; the filter is a no-op.)
+ */
 export async function readOwnRecords(start: number, end: number): Promise<OwnRecord[]> {
-  return (await HealthStore.readOwnSteps(start, end)).map(toOwn);
+  const rs = await HealthStore.readOwnSteps(start - DAY_MS, end);
+  return rs.filter((r) => r.start < end && r.end > start).map(toOwn);
 }
 
 /** Total steps in the range from ALL sources, deduplicated by the platform. */

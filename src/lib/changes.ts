@@ -29,8 +29,10 @@ const DAY = 24 * HOUR;
 /**
  * How far back "everything this app wrote" reaches. Android 12's standalone Health
  * Connect only lets apps read ~30 days back; HealthKit has no such limit.
+ * 29 (not 30) because readOwnRecords() reads one extra day to catch records that
+ * started before the range — together that's exactly 30 days.
  */
-export const LOOKBACK_MS = Platform.OS === 'android' ? 30 * DAY : 3650 * DAY;
+export const LOOKBACK_MS = Platform.OS === 'android' ? 29 * DAY : 3650 * DAY;
 
 export interface RecordData {
   start: number;

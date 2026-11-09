@@ -88,7 +88,7 @@ Rollback = the inverse ChangeSet of a past operation: delete what it inserted (i
 there), re-insert what it deleted (if not back already). Re-inserted records get new ids.
 
 "Everything this app wrote" means what the platform still lets us read: `LOOKBACK_MS` in
-`changes.ts` (30 days on Android because of the standalone Health Connect limit).
+`changes.ts` (29 days + the 1 extra day `readOwnRecords` adds = 30 on Android, the standalone Health Connect limit).
 
 ## Database (`src/lib/db.ts`)
 

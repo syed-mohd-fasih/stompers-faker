@@ -128,7 +128,7 @@ export default function Home() {
       if (n / minutes > MAX_SANE_PACE) addLog(`Warning: average pace ${Math.round(n / minutes)} steps/min.`);
       addLog(`Spread plan: ${chunks.length} chunks, ${Math.round(minutes)} min walking.`);
       // Preview every generated chunk before writing.
-      await commit(() => planInsert('spread', chunks), { review: true, confirmLabel: `Insert ${chunks.length} records` });
+      await commit(() => planInsert('spread', chunks), { review: true, confirmLabel: `Insert ${chunks.length} record${chunks.length === 1 ? '' : 's'}` });
     } catch (e) {
       addLog(`Spread failed: ${errMsg(e)}`);
     } finally {
