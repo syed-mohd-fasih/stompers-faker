@@ -61,14 +61,15 @@ type BtnProps = {
   label: string;
   onPress?: () => void;
   disabled?: boolean;
-  /** primary = big filled CTA, secondary = outlined, chip = small rounded, small = compact filled/outlined row button */
-  variant?: 'primary' | 'secondary' | 'chip' | 'small-primary' | 'small';
+  /** primary = big filled CTA, danger = big destructive CTA, secondary = outlined, chip = small rounded, small = compact row button */
+  variant?: 'primary' | 'danger' | 'secondary' | 'chip' | 'small-primary' | 'small';
   className?: string;
 };
 
 export function Button({ label, onPress, disabled, variant = 'primary', className = '' }: BtnProps) {
   const box = {
     primary: disabled ? 'h-14 rounded-btn bg-off-bg' : 'h-14 rounded-btn bg-primary',
+    danger: disabled ? 'h-14 rounded-btn bg-off-bg' : 'h-14 rounded-btn bg-danger',
     secondary: 'h-12 rounded-[14px] border-[1.5px] border-line bg-surface',
     chip: 'h-11 px-3.5 rounded-full border border-line bg-surface-2',
     'small-primary': disabled ? 'h-11 px-3 rounded-[12px] bg-off-bg' : 'h-11 px-3 rounded-[12px] bg-primary',
@@ -77,10 +78,12 @@ export function Button({ label, onPress, disabled, variant = 'primary', classNam
   const filled = variant === 'primary' || variant === 'small-primary';
   const text = disabled
     ? 'text-off-fg'
-    : filled
-      ? 'text-primary-fg'
-      : 'text-fg';
-  const font = variant === 'primary' ? 'font-sans-bold text-[17px]' : 'font-sans-semibold text-[15px]';
+    : variant === 'danger'
+      ? 'text-bg' // page background color reads well on danger in both themes
+      : filled
+        ? 'text-primary-fg'
+        : 'text-fg';
+  const font = variant === 'primary' || variant === 'danger' ? 'font-sans-bold text-[17px]' : 'font-sans-semibold text-[15px]';
   return (
     <Pressable
       onPress={onPress}
@@ -133,10 +136,10 @@ export function Field({ label, error, big, className = '', ...p }: FieldProps) {
   );
 }
 
-export const Tag = ({ kind }: { kind: 'fake' | 'real' | 'other' }) => {
+export const Tag = ({ kind }: { kind: 'fake' | 'legacy' | 'other' }) => {
   const [bg, fg] = {
     fake: ['bg-primary-soft', 'text-primary-ink'],
-    real: ['bg-real-soft', 'text-real'],
+    legacy: ['bg-surface-2', 'text-fg-muted'],
     other: ['bg-surface-2', 'text-fg-muted'],
   }[kind];
   return (

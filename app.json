@@ -7,7 +7,8 @@
     "icon": "./assets/brand/icon-1024.png",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "dev.fasih.stompersfaker"
     },
     "android": {
       "adaptiveIcon": {
@@ -15,20 +16,14 @@
         "backgroundColor": "#FF5A1F"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "dev.fasih.stompersfaker",
-      "permissions": [
-        "android.permission.health.READ_STEPS",
-        "android.permission.health.WRITE_STEPS",
-        "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND",
-        "android.permission.ACTIVITY_RECOGNITION"
-      ]
+      "package": "dev.fasih.stompersfaker"
     },
     "web": {
       "favicon": "./assets/brand/icon-96.png"
     },
     "plugins": [
       "expo-router",
-      "react-native-health-connect",
+      "./modules/health-store/app.plugin.js",
       [
         "expo-build-properties",
         {
@@ -61,7 +56,8 @@
           ]
         }
       ],
-      "./plugins/withReleaseSigning"
+      "./plugins/withReleaseSigning",
+      "expo-sqlite"
     ],
     "scheme": "stompersfaker"
   }

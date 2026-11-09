@@ -1,25 +1,29 @@
-// State shared by all tabs: the log, Health Connect status/permissions,
-// today's total and this app's records.
+// State shared by all tabs: the debug log, health store status/permissions, today's
+// total and this app's records — plus commit(), the one way screens change Health data.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useReview } from '@/components/ReviewSheet';
 import type { LogLine } from '@/components/ui';
+import { apply, planDelete, type ApplyResult, type ChangeSet } from './changes';
 import {
   aggregateSteps,
   checkAvailability,
-  deleteRecord,
   getPermissionState,
-  openHealthConnectSettings,
+  hasAccess,
+  openHealthSettings,
   readOwnRecords,
   requestStepsPermissions,
   type Availability,
   type OwnRecord,
   type PermissionState,
 } from './health';
-import { formatTime, startOfToday } from './time';
+import { startOfToday } from './time';
 import { errMsg, useLog } from './useLog';
-import { setBlockedRanges } from '../../modules/step-sync';
 
 export type HcStatus = Availability | 'error' | 'checking';
+
+/** ✓ / ✗ / ? (iOS can't report read access). */
+export const mark = (v: boolean | 'unknown') => (v === 'unknown' ? '?' : v ? '✓' : '✗');
 
 interface AppState {
   log: { lines: LogLine[]; add: (msg: string) => void; clear: () => void };
@@ -37,6 +41,13 @@ interface AppState {
   grant: () => Promise<void>;
   openHcSettings: () => void;
   removeRecord: (r: OwnRecord) => Promise<void>;
+  /**
+   * Plan → (optional preview) → apply → log → refresh. Returns null if the user cancelled
+   * the preview or planning failed. `opts.review` shows the ReviewSheet first.
+   */
+  commit: (plan: () => Promise<ChangeSet>, opts?: { review?: boolean; confirmLabel?: string }) => Promise<ApplyResult | null>;
+  /** Bumped after every commit; screens that list history/snapshots reload on change. */
+  dataVersion: number;
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -49,6 +60,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [total, setTotal] = useState<number | null>(null);
   const [records, setRecords] = useState<OwnRecord[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [dataVersion, setDataVersion] = useState(0);
+  const review = useReview();
 
   /** Reloads today's aggregate total and this app's records. */
   const refresh = useCallback(async () => {
@@ -59,8 +72,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       const [t, recs] = await Promise.all([aggregateSteps(dayStart, now), readOwnRecords(dayStart, now)]);
       setTotal(t);
       setRecords(recs);
-      // Let the real-step background job know which times are taken by fake records.
-      setBlockedRanges(recs.filter((r) => r.kind !== 'real'));
     } catch (e) {
       addLog(`Refresh failed: ${errMsg(e)}`);
     } finally {
@@ -77,8 +88,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (a !== 'available') return;
       const p = await getPermissionState();
       setPerms(p);
-      addLog(`Permissions: read ${p.read ? '✓' : '✗'} write ${p.write ? '✓' : '✗'}`);
-      if (p.read && p.write) await refresh();
+      addLog(`Permissions: read ${mark(p.read)} write ${mark(p.write)}`);
+      if (hasAccess(p)) await refresh();
     } catch (e) {
       setStatus('error');
       addLog(`Status check failed: ${errMsg(e)}`);
@@ -95,8 +106,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     try {
       const p = await requestStepsPermissions();
       setPerms(p);
-      addLog(`Granted: read ${p.read ? '✓' : '✗'} write ${p.write ? '✓' : '✗'}`);
-      if (p.read && p.write) await refresh();
+      addLog(`Granted: read ${mark(p.read)} write ${mark(p.write)}`);
+      if (hasAccess(p)) await refresh();
       else addLog('Warning: not all permissions granted. If no dialog appeared, use HC settings.');
     } catch (e) {
       addLog(`Permission request failed: ${errMsg(e)}`);
@@ -105,23 +116,39 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const openHcSettings = useCallback(() => {
     try {
-      openHealthConnectSettings();
+      openHealthSettings();
     } catch (e) {
       addLog(`Open HC settings failed: ${errMsg(e)}`);
     }
   }, [addLog]);
 
+  const commit = useCallback<AppState['commit']>(
+    async (plan, opts) => {
+      let cs: ChangeSet;
+      try {
+        cs = await plan();
+      } catch (e) {
+        addLog(`Planning failed: ${errMsg(e)}`);
+        return null;
+      }
+      if (opts?.review && !(await review(cs, { confirmLabel: opts.confirmLabel }))) {
+        addLog(`Cancelled: ${cs.title}`);
+        return null;
+      }
+      const res = await apply(cs);
+      addLog(res.error ? `Failed (${res.status}): ${cs.summary} — ${res.error}` : `#${res.opId} ${cs.summary}`);
+      setDataVersion((v) => v + 1);
+      await refresh();
+      return res;
+    },
+    [addLog, refresh, review],
+  );
+
   const removeRecord = useCallback(
     async (r: OwnRecord) => {
-      try {
-        await deleteRecord(r.id);
-        addLog(`Deleted ${r.count} steps (${formatTime(new Date(r.start))}–${formatTime(new Date(r.end))})`);
-        await refresh();
-      } catch (e) {
-        addLog(`Delete failed: ${errMsg(e)}`);
-      }
+      await commit(() => planDelete([r]));
     },
-    [addLog, refresh],
+    [commit],
   );
 
   const value = useMemo<AppState>(
@@ -129,7 +156,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       log,
       status,
       perms,
-      ready: status === 'available' && perms.read && perms.write,
+      ready: status === 'available' && hasAccess(perms),
       total,
       records,
       refreshing,
@@ -138,8 +165,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       grant,
       openHcSettings,
       removeRecord,
+      commit,
+      dataVersion,
     }),
-    [log, status, perms, total, records, refreshing, refresh, checkStatus, grant, openHcSettings, removeRecord],
+    [log, status, perms, total, records, refreshing, refresh, checkStatus, grant, openHcSettings, removeRecord, commit, dataVersion],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

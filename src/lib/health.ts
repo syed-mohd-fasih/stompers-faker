@@ -1,120 +1,66 @@
-// Thin wrapper around react-native-health-connect for the Steps record type.
+// App-level wrapper around the health-store native module (Health Connect on Android,
+// HealthKit on iOS) for step data. Screens use this, never the module directly.
 
-import Constants from 'expo-constants';
-import {
-  aggregateRecord,
-  deleteRecordsByUuids,
-  getGrantedPermissions,
-  getSdkStatus,
-  initialize,
-  insertRecords,
-  openHealthConnectSettings,
-  readRecords,
-  requestPermission,
-  SdkAvailabilityStatus,
-  type Permission,
-} from 'react-native-health-connect';
+import HealthStore, { type HealthPermissions, type HourBucket, type StepRecord } from '../../modules/health-store';
 import type { Chunk, Range } from './steps';
 
-/** Our own package name; used to filter Health Connect data by origin. */
-export const APP_PACKAGE = Constants.expoConfig?.android?.package ?? 'dev.fasih.stompersfaker';
-
-/** clientRecordId prefixes so we can tell our fake vs. real (sensor) records apart. */
+/** clientId prefixes so we can tell what kind of record we wrote. */
 export const FAKE_PREFIX = 'fake-';
-export const REAL_PREFIX = 'real-'; // written by the native step-sync module
-
-const PERMISSIONS: Permission[] = [
-  { accessType: 'read', recordType: 'Steps' },
-  { accessType: 'write', recordType: 'Steps' },
-];
+/** Written by the removed v1.0 background step sync. Still shown, labelled "legacy". */
+export const LEGACY_REAL_PREFIX = 'real-';
 
 export type Availability = 'available' | 'unavailable' | 'update_required';
+export type PermissionState = HealthPermissions;
+export type { HourBucket };
 
-/** Checks the SDK status and initializes the client if Health Connect is usable. */
+/** Platform health store status (Health Connect installed / up to date; HealthKit present). */
 export async function checkAvailability(): Promise<Availability> {
-  const status = await getSdkStatus();
-  if (status === SdkAvailabilityStatus.SDK_UNAVAILABLE) return 'unavailable';
-  if (status === SdkAvailabilityStatus.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) return 'update_required';
-  const ok = await initialize();
-  if (!ok) throw new Error('Health Connect initialize() returned false');
-  return 'available';
+  return HealthStore.getStatus();
 }
 
-export interface PermissionState {
-  read: boolean;
-  write: boolean;
-}
+export const getPermissionState = () => HealthStore.getPermissions();
+export const requestStepsPermissions = () => HealthStore.requestPermissions();
+export const openHealthSettings = () => HealthStore.openHealthSettings();
 
-function toState(granted: { accessType: string; recordType?: string }[]): PermissionState {
-  const has = (t: string) => granted.some((p) => p.recordType === 'Steps' && p.accessType === t);
-  return { read: has('read'), write: has('write') };
-}
+/** Read access counts as OK when the platform can't tell (iOS). */
+export const hasAccess = (p: PermissionState) => p.write && p.read !== false;
 
-export async function getPermissionState(): Promise<PermissionState> {
-  return toState(await getGrantedPermissions());
-}
-
-export async function requestStepsPermissions(): Promise<PermissionState> {
-  return toState(await requestPermission(PERMISSIONS));
-}
-
-export { openHealthConnectSettings };
+export type RecordKind = 'fake' | 'legacy' | 'other';
 
 export interface OwnRecord extends Range {
   id: string;
   count: number;
-  kind: 'fake' | 'real' | 'other';
+  clientId: string;
+  kind: RecordKind;
 }
 
-/** Reads Steps records written by THIS app that touch [start, end]. Handles paging. */
+const kindOf = (clientId: string): RecordKind =>
+  clientId.startsWith(FAKE_PREFIX) ? 'fake' : clientId.startsWith(LEGACY_REAL_PREFIX) ? 'legacy' : 'other';
+
+const toOwn = (r: StepRecord): OwnRecord => ({ ...r, kind: kindOf(r.clientId) });
+
+/** Step records written by THIS app that touch [start, end]. */
 export async function readOwnRecords(start: number, end: number): Promise<OwnRecord[]> {
-  const out: OwnRecord[] = [];
-  let pageToken: string | undefined;
-  do {
-    const res = await readRecords('Steps', {
-      timeRangeFilter: { operator: 'between', startTime: new Date(start).toISOString(), endTime: new Date(end).toISOString() },
-      dataOriginFilter: [APP_PACKAGE],
-      ascendingOrder: true,
-      pageSize: 1000,
-      pageToken,
-    });
-    for (const r of res.records) {
-      const cid = r.metadata?.clientRecordId ?? '';
-      out.push({
-        id: r.metadata?.id ?? '',
-        start: Date.parse(r.startTime),
-        end: Date.parse(r.endTime),
-        count: r.count,
-        kind: cid.startsWith(FAKE_PREFIX) ? 'fake' : cid.startsWith(REAL_PREFIX) ? 'real' : 'other',
-      });
-    }
-    pageToken = res.pageToken || undefined;
-  } while (pageToken);
-  return out;
+  return (await HealthStore.readOwnSteps(start, end)).map(toOwn);
 }
 
-/** Total steps in the range from ALL apps, deduplicated by Health Connect. */
-export async function aggregateSteps(start: number, end: number): Promise<number> {
-  const res = await aggregateRecord({
-    recordType: 'Steps',
-    timeRangeFilter: { operator: 'between', startTime: new Date(start).toISOString(), endTime: new Date(end).toISOString() },
-  });
-  return res.COUNT_TOTAL;
-}
+/** Total steps in the range from ALL sources, deduplicated by the platform. */
+export const aggregateSteps = (start: number, end: number) => HealthStore.totalSteps(start, end);
 
-/** Inserts one Steps record per chunk. Returns the new record ids. */
+/** Hourly buckets for a chart: total (all sources) and own (this app). */
+export const hourlySteps = (start: number, end: number) => HealthStore.hourlySteps(start, end);
+
+export const fakeClientId = (c: Range) => `${FAKE_PREFIX}${c.start}-${c.end}`;
+
+/** Inserts one fake step record per chunk. Returns the new platform ids (same order). */
 export async function insertChunks(chunks: Chunk[]): Promise<string[]> {
-  return insertRecords(
-    chunks.map((c) => ({
-      recordType: 'Steps' as const,
-      startTime: new Date(c.start).toISOString(),
-      endTime: new Date(c.end).toISOString(),
-      count: c.count,
-      metadata: { clientRecordId: `${FAKE_PREFIX}${c.start}-${c.end}` },
-    })),
-  );
+  return HealthStore.insertSteps(chunks.map((c) => ({ start: c.start, end: c.end, count: c.count, clientId: fakeClientId(c) })));
 }
 
-export async function deleteRecord(id: string): Promise<void> {
-  await deleteRecordsByUuids('Steps', [id], []);
+/** Re-inserts records exactly as they were (snapshot restore / rollback). */
+export async function insertRaw(records: { start: number; end: number; count: number; clientId: string }[]): Promise<string[]> {
+  return HealthStore.insertSteps(records);
 }
+
+export const deleteRecords = (ids: string[]) => HealthStore.deleteSteps(ids);
+export const deleteRecord = (id: string) => HealthStore.deleteSteps([id]);

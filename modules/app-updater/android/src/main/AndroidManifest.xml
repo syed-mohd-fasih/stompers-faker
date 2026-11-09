@@ -1,0 +1,4 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Lets the app open the system installer for a downloaded update (the user still confirms). -->
+  <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+</manifest>

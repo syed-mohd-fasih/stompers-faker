@@ -12,12 +12,12 @@
         "expo-linking": "~58.0.16",
         "expo-router": "~58.0.30",
         "expo-splash-screen": "~58.0.13",
+        "expo-sqlite": "~58.0.15",
         "expo-status-bar": "~58.0.4",
         "expo-system-ui": "~58.0.7",
         "nativewind": "^4.2.7",
         "react": "19.3.0",
         "react-native": "0.88.1",
-        "react-native-health-connect": "^4.1.3",
         "react-native-reanimated": "4.7.1",
         "react-native-safe-area-context": "~5.11.1",
         "react-native-screens": "~4.30.1",
@@ -538,6 +538,8 @@
 
     "available-typed-arrays": ["available-typed-arrays@1.0.7", "", { "dependencies": { "possible-typed-array-names": "^1.0.0" } }, "sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ=="],
 
+    "await-lock": ["await-lock@2.2.2", "", {}, "sha512-aDczADvlvTGajTDjcjpJMqRkOF6Qdz3YbPZm/PyW6tKPkx2hlYBzxMhEywM/tU72HrVZjgl5VCdRuMlA7pZ8Gw=="],
+
     "babel-plugin-polyfill-corejs2": ["babel-plugin-polyfill-corejs2@0.4.17", "", { "dependencies": { "@babel/compat-data": "^7.28.6", "@babel/helper-define-polyfill-provider": "^0.6.8", "semver": "^6.3.1" }, "peerDependencies": { "@babel/core": "^7.4.0 || ^8.0.0-0 <8.0.0" } }, "sha512-aTyf30K/rqAsNwN76zYrdtx8obu0E4KoUME29B1xj+B3WxgvWkp943vYQ+z8Mv3lw9xHXMHpvSPOBxzAkIa94w=="],
 
     "babel-plugin-polyfill-corejs3": ["babel-plugin-polyfill-corejs3@0.13.0", "", { "dependencies": { "@babel/helper-define-polyfill-provider": "^0.6.5", "core-js-compat": "^3.43.0" }, "peerDependencies": { "@babel/core": "^7.4.0 || ^8.0.0-0 <8.0.0" } }, "sha512-U+GNwMdSFgzVmfhNm8GJUX88AadB3uo9KpJqS3FaqNIPKgySuvMb+bHPsOmmuWyIcuqZj/pzt1RUIUZns4y2+A=="],
@@ -779,6 +781,8 @@
     "expo-server": ["expo-server@58.0.6", "", {}, "sha512-6DBlSZwxk3J0y1j2s4XebAWNiwGaMp32NcWX7b2kJC2+EFf1g+pCcVmx8ylawt2tyLmbDHswm4MHOfrd4bqfvA=="],
 
     "expo-splash-screen": ["expo-splash-screen@58.0.13", "", { "dependencies": { "@expo/config-plugins": "~58.0.12", "@expo/image-utils": "^0.12.6", "xml2js": "0.6.0" }, "peerDependencies": { "expo": "*" } }, "sha512-RsvDF13tU1wQIy2blzmdbZoWpPWNTYks2A0CUq2AENR7i7u8elSSEfQOdh5TeC0lrrFVbiWfPj2JiM7y/m08Ig=="],
+
+    "expo-sqlite": ["expo-sqlite@58.0.15", "", { "dependencies": { "await-lock": "^2.2.2" }, "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-jokbgUHPD1zvpFT/LeJaCoOTsd0QXXWzbthVPCMyMMn+/IZAMqQu79OxYzck5G5wlc+t+vTuEESGMY8r1n3VTA=="],
 
     "expo-status-bar": ["expo-status-bar@58.0.4", "", { "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-e6JJHziSSNb1v1VSzmDrAPf6GFoPRdVOIDrTCcK3bHfbJEAZGZ3YZXfqlorZtUFDT0z6NcjaZf0mPWifJZcqew=="],
 
@@ -1255,8 +1259,6 @@
     "react-native-drawer-layout": ["react-native-drawer-layout@4.2.12", "", { "dependencies": { "color": "^4.2.3", "use-latest-callback": "^0.2.4" }, "peerDependencies": { "react": ">= 18.2.0", "react-native": "*", "react-native-gesture-handler": ">= 2.0.0", "react-native-reanimated": ">= 2.0.0" } }, "sha512-qYmntEctkMSodN7pnC2llV21nswImLFPHJeT3PJXSJqZdU4jzDATR8iVi66sXkrtoOLJ2+EvXxgd7sMMpV4ViA=="],
 
     "react-native-gesture-handler": ["react-native-gesture-handler@3.5.0", "", { "dependencies": { "@types/react-test-renderer": "^19.1.0", "invariant": "^2.2.4" }, "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-bm8yepwMBUhEOSeU7WQbNNrstD0Hbv6i+XsApARBJSlb+WlRvyaQsobi+tZ5Uyr5kDVgXzg6kPb+CWY9zvyfEw=="],
-
-    "react-native-health-connect": ["react-native-health-connect@4.1.3", "", { "peerDependencies": { "@expo/config-plugins": ">= 6.0.2", "expo": "*", "react": "*", "react-native": "*" }, "optionalPeers": ["@expo/config-plugins", "expo"] }, "sha512-osiWh4RD4tNHdHeggzOeGZFeEVaLQQr0+Yezq61WsPRvN1Yb6eA10rMfSU0+dqcfm6ZvIXSr2tYns+Yg1s37nw=="],
 
     "react-native-is-edge-to-edge": ["react-native-is-edge-to-edge@1.3.1", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-NIXU/iT5+ORyCc7p0z2nnlkouYKX425vuU1OEm6bMMtWWR9yvb+Xg5AZmImTKoF9abxCPqrKC3rOZsKzUYgYZA=="],
 

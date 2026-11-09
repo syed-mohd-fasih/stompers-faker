@@ -1,10 +1,13 @@
 // App settings: appearance (System/Light/Dark), accent color, and about.
 
 import Constants from 'expo-constants';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, Icon, KeyValue, ScreenHeader, Title } from '@/components/ui';
+import { UpdateCard } from '@/components/UpdateCard';
+import { Card, Icon, KeyValue, ScreenHeader, Title, usePalette } from '@/components/ui';
 import { useApp } from '@/lib/app-state';
+import { getSetting, setSetting } from '@/lib/db';
 import { ACCENTS, accentHex, useTheme, type Accent, type ThemeMode } from '@/lib/theme';
 
 const MODES: { value: ThemeMode; label: string; icon: 'smartphone' | 'sun' | 'moon' }[] = [
@@ -18,12 +21,31 @@ const appIcon = require('../../assets/brand/icon-96.png');
 export default function AppSettings() {
   const { mode, setMode, accent, setAccent, scheme } = useTheme();
   const { openHcSettings } = useApp();
+  const palette = usePalette();
   const cfg = Constants.expoConfig;
+  // Shown as the author of History entries and snapshots on this phone.
+  const [name, setName] = useState(() => getSetting('author') ?? '');
+  const healthApp = Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect';
 
   return (
     <SafeAreaView className="flex-1 bg-bg" edges={['top', 'left', 'right', 'bottom']}>
       <ScrollView contentContainerClassName="gap-4 px-4 pb-8">
         <ScreenHeader title="Settings" back settings={false} />
+
+        {/* Author name */}
+        <Card>
+          <Title>Your name</Title>
+          <Text className="font-sans text-[14px] text-fg-muted">Shown in History and on snapshots, so you can tell who did what.</Text>
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            onEndEditing={() => setSetting('author', name.trim())}
+            placeholder="Me"
+            placeholderTextColor={palette.muted}
+            autoCapitalize="words"
+            className="h-12 rounded-field border-[1.5px] border-line bg-bg px-3 font-sans text-[15px] text-fg"
+          />
+        </Card>
 
         {/* Appearance */}
         <Card>
@@ -50,7 +72,7 @@ export default function AppSettings() {
         {/* Accent */}
         <Card>
           <Title>Accent color</Title>
-          <Text className="font-sans text-[14px] text-fg-muted">Used for buttons and fake records. Real records stay blue.</Text>
+          <Text className="font-sans text-[14px] text-fg-muted">Used for buttons and fake records. In the chart, real steps are always orange, so fake shows red while the accent is orange.</Text>
           <View className="flex-row justify-between" accessibilityRole="radiogroup">
             {(Object.keys(ACCENTS) as Accent[]).map((a) => {
               const on = a === accent;
@@ -77,10 +99,10 @@ export default function AppSettings() {
 
         {/* Health Connect shortcut */}
         <Card>
-          <Title>Health Connect</Title>
+          <Title>{healthApp}</Title>
           <Pressable onPress={openHcSettings} accessibilityRole="button" className="flex-row items-center gap-3 active:opacity-70">
             <Icon name="heart" className="text-primary" />
-            <Text className="flex-1 font-sans-medium text-[15px] text-fg">Open Health Connect settings</Text>
+            <Text className="flex-1 font-sans-medium text-[15px] text-fg">Open {healthApp} settings</Text>
             <Icon name="external-link" size={16} className="text-fg-muted" />
           </Pressable>
         </Card>
@@ -95,14 +117,15 @@ export default function AppSettings() {
             </View>
           </View>
           <Text className="font-sans text-[15px] leading-[22px] text-fg-muted">
-            Personal tool that writes Steps records to Health Connect, so Stompers can read them. Fake steps are added by hand;
-            real steps come from the phone’s step counter.
+            Personal tool that writes Steps records to {healthApp}, so Stompers can read them. Fake steps are added by hand and
+            can be removed again at any time; data from other apps is never changed.
           </Text>
           <View>
             <KeyValue label="Package" value={cfg?.android?.package ?? '?'} />
             <KeyValue label="Expo SDK" value={cfg?.sdkVersion ?? '?'} />
             <KeyValue label="Build" value={__DEV__ ? 'Debug' : 'Release'} />
           </View>
+          <UpdateCard />
         </Card>
       </ScrollView>
     </SafeAreaView>

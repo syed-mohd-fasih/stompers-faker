@@ -6,7 +6,7 @@ import { useTheme } from '@/lib/theme';
 type IconName = ComponentProps<typeof Feather>['name'];
 
 
-// Bottom tabs: Home (today + inject), Records, Sync (real steps), Logs.
+// Bottom tabs: Home (today + inject), Records (chart + cleanup), Snapshots, History.
 // App settings is a separate stack screen opened from the gear in each header.
 export default function TabsLayout() {
   const { palette } = useTheme();
@@ -30,8 +30,8 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={tab('Home', 'home')} />
       <Tabs.Screen name="records" options={tab('Records', 'list')} />
-      <Tabs.Screen name="sync" options={tab('Sync', 'activity')} />
-      <Tabs.Screen name="logs" options={tab('Logs', 'terminal')} />
+      <Tabs.Screen name="snapshots" options={tab('Snapshots', 'archive')} />
+      <Tabs.Screen name="history" options={tab('History', 'clock')} />
     </Tabs>
   );
 }

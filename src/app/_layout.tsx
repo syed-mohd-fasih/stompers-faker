@@ -2,6 +2,7 @@ import '../../global.css';
 
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { ReviewProvider } from '@/components/ReviewSheet';
 import { AppStateProvider } from '@/lib/app-state';
 import { ThemeProvider, useTheme } from '@/lib/theme';
 
@@ -22,9 +23,11 @@ function Root() {
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <AppStateProvider>
-        <Root />
-      </AppStateProvider>
+      <ReviewProvider>
+        <AppStateProvider>
+          <Root />
+        </AppStateProvider>
+      </ReviewProvider>
     </ThemeProvider>
   );
 }

@@ -1,0 +1,9 @@
+{
+  "platforms": ["android", "apple"],
+  "android": {
+    "modules": ["expo.modules.healthstore.HealthStoreModule"]
+  },
+  "apple": {
+    "modules": ["HealthStoreModule"]
+  }
+}

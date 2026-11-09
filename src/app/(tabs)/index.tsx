@@ -1,16 +1,20 @@
 // Home tab: today's total, Health Connect status, and fake-step injection.
 
 import { useRef, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Platform, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Banner, Button, Card, Field, Icon, Pill, ScreenHeader, Sheet, TextButton, Title, type Tone } from '@/components/ui';
-import { useApp, type HcStatus } from '@/lib/app-state';
-import { insertChunks, readOwnRecords, type PermissionState } from '@/lib/health';
+import { mark, useApp, type HcStatus } from '@/lib/app-state';
+import { planInsert } from '@/lib/changes';
+import { readOwnRecords, type PermissionState } from '@/lib/health';
 import { autoShift, findOverlaps, MAX_SANE_PACE, spreadAcrossToday, validateChunk, type Range } from '@/lib/steps';
 import { formatInput, formatNumber, formatTime, HOUR, MINUTE, parseInput, startOfToday } from '@/lib/time';
 import { errMsg } from '@/lib/useLog';
 
 type OverlapChoice = 'shift' | 'anyway' | 'cancel';
+
+/** The button that opens the platform's health permissions. */
+const HEALTH_SETTINGS = Platform.OS === 'ios' ? 'Health app' : 'HC settings';
 
 const span = (r: Range) => `${formatTime(new Date(r.start))}–${formatTime(new Date(r.end))}`;
 
@@ -32,7 +36,7 @@ function describe(status: HcStatus, perms: PermissionState, ready: boolean) {
 }
 
 export default function Home() {
-  const { status, perms, ready, total, refresh, checkStatus, grant, openHcSettings, log } = useApp();
+  const { status, perms, ready, total, checkStatus, grant, openHcSettings, log, commit } = useApp();
   const addLog = log.add;
   const [count, setCount] = useState('1000');
   const [startText, setStartText] = useState(() => formatInput(new Date(Date.now() - HOUR)));
@@ -85,9 +89,8 @@ export default function Home() {
           addLog(`Shifted to ${formatInput(new Date(range.start))}–${formatTime(new Date(range.end))}`);
         }
       }
-      const ids = await insertChunks([{ ...range, count: steps }]);
-      addLog(`Inserted ${steps} steps (${span(range)}), id ${(ids[0] ?? '?').slice(0, 6)}…`);
-      await refresh();
+      // Journaled in History (undoable); commit() logs and refreshes.
+      await commit(() => planInsert('inject', [{ ...range, count: steps }]));
     } catch (e) {
       addLog(`Insert failed: ${errMsg(e)}`);
     } finally {
@@ -123,9 +126,9 @@ export default function Home() {
       if (chunks.length === 0) return addLog('Spread failed: no free time left today.');
       const minutes = chunks.reduce((a, c) => a + (c.end - c.start) / MINUTE, 0);
       if (n / minutes > MAX_SANE_PACE) addLog(`Warning: average pace ${Math.round(n / minutes)} steps/min.`);
-      await insertChunks(chunks);
-      addLog(`Spread ${n} steps over ${chunks.length} chunks (${Math.round(minutes)} min walking).`);
-      await refresh();
+      addLog(`Spread plan: ${chunks.length} chunks, ${Math.round(minutes)} min walking.`);
+      // Preview every generated chunk before writing.
+      await commit(() => planInsert('spread', chunks), { review: true, confirmLabel: `Insert ${chunks.length} records` });
     } catch (e) {
       addLog(`Spread failed: ${errMsg(e)}`);
     } finally {
@@ -159,7 +162,7 @@ export default function Home() {
           ) : null}
           {status === 'available' && !ready ? (
             <Banner tone="warn" icon="alert-triangle" title="Access needed.">
-              Grant read and write access to Steps. If no dialog opens, use HC settings.
+              {`Grant read and write access to Steps. If no dialog opens, use ${HEALTH_SETTINGS}.`}
             </Banner>
           ) : null}
           {ready ? (
@@ -171,7 +174,7 @@ export default function Home() {
             <View className="flex-row flex-wrap items-center gap-2">
               <Pill tone={pill.tone} label={pill.label} dot />
               <Text className="font-sans text-[14px] text-fg-muted">
-                Permissions: read {perms.read ? '✓' : '✗'} · write {perms.write ? '✓' : '✗'}
+                Permissions: read {mark(perms.read)} · write {mark(perms.write)}
               </Text>
             </View>
           )}
@@ -189,7 +192,7 @@ export default function Home() {
               onPress={checkStatus}
               className="flex-1"
             />
-            <Button label="HC settings" variant="small" onPress={openHcSettings} className="flex-[1.3]" />
+            <Button label={HEALTH_SETTINGS} variant="small" onPress={openHcSettings} className="flex-[1.3]" />
           </View>
         </Card>
 

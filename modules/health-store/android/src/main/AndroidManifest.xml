@@ -1,0 +1,11 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Steps read/write. The rationale activity + permission-usage alias are added to the
+       app's MainActivity by ../../app.plugin.js (they must live on the app's activity). -->
+  <uses-permission android:name="android.permission.health.READ_STEPS" />
+  <uses-permission android:name="android.permission.health.WRITE_STEPS" />
+
+  <!-- Lets getSdkStatus() see the standalone Health Connect app (Android 13 and lower). -->
+  <queries>
+    <package android:name="com.google.android.apps.healthdata" />
+  </queries>
+</manifest>
