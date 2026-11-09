@@ -29,9 +29,67 @@ Your data and history are kept.
 
 ### iPhone
 
-Coming soon. iPhones don't install apps from files the way Android does, so the iPhone
-version is installed through **SideStore** (free, but needs a refresh every 7 days) or a
-build tied to your device. Ask before trying it.
+> **Still in testing.** It isn't confirmed yet that a free Apple Account can use Apple Health
+> through sideloading. If the app can't get Health access after installing, that's why.
+
+iPhones can't open app files like Android, so you install the app with a sideloading tool
+that signs it with your own (free) Apple Account. Apps signed this way stop opening after
+**7 days** unless they're refreshed, and you can have at most **3** sideloaded apps.
+
+You need: an iPhone with a passcode (iOS 15 or newer for SideStore), your Apple Account,
+Wi-Fi, a computer once for setup, and the latest `stompers-faker-vX.ipa` from
+[Releases](https://github.com/syed-mohd-fasih/stompers-faker/releases/latest).
+
+#### Option A: SideStore (recommended, refreshes on the phone itself)
+
+One-time setup (full guide: [docs.sidestore.io](https://docs.sidestore.io/docs/installation/prerequisites)):
+
+1. On the iPhone, install **LocalDevVPN** from the App Store, open it and tap **Connect**.
+2. On a computer (Windows, Mac or Linux), install **[iloader](https://iloader.app)**
+   (Windows also needs iTunes).
+3. Plug in the iPhone, tap **Trust** on the phone if asked.
+4. In iloader: sign in with your Apple Account, pick your iPhone, click
+   **Install SideStore (Stable)**.
+5. On the iPhone: **Settings → General → VPN & Device Management** → your Apple Account →
+   **Trust**.
+6. **Settings → Privacy & Security → Developer Mode** → on (the phone restarts).
+7. Open LocalDevVPN → **Connect**, then open **SideStore** and sign in with the same Apple
+   Account.
+
+Install Stompers Faker:
+
+1. Download the `.ipa` from Releases on the iPhone (it lands in the Files app).
+2. Make sure LocalDevVPN is connected.
+3. In SideStore → **My Apps** → **+** → pick the `.ipa`.
+4. Open Stompers Faker → **Grant** → allow reading and writing Steps.
+
+Every few days: connect LocalDevVPN, open SideStore → My Apps → tap the **days left** button
+next to each app to refresh it.
+
+#### Option B: AltStore (needs your computer for every refresh)
+
+One-time setup (full guide: [faq.altstore.io](https://faq.altstore.io)):
+
+1. On the computer, install **AltServer** ([Mac](https://faq.altstore.io/altstore-classic/how-to-install-altstore-macos)
+   or [Windows](https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows);
+   on Windows also iTunes and iCloud **from Apple's website**, not the Microsoft Store).
+2. Plug in the iPhone, trust the computer, and turn on **Wi-Fi sync** for it
+   (Finder on Mac, iTunes on Windows).
+3. AltServer icon (menu bar / taskbar) → **Install AltStore** → your iPhone → sign in with
+   your Apple Account.
+4. On the iPhone: trust your Apple Account under **Settings → General → VPN & Device
+   Management**, and turn on **Developer Mode** (Settings → Privacy & Security).
+
+Install Stompers Faker: download the `.ipa` on the iPhone, then AltStore → **My Apps** →
+**+** → pick the `.ipa`.
+
+Refreshing only works while AltServer is running on your computer **on the same Wi-Fi**, so
+open it at least once a week.
+
+#### Updating on iPhone
+
+Download the newer `.ipa` from Releases and install it the same way (My Apps → **+**). It
+replaces the old version and keeps your data.
 
 ## How to use it
 
