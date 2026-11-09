@@ -133,6 +133,7 @@ jobs:
 
       - name: Build unsigned archive
         run: |
+          set -o pipefail # otherwise `| tail` hides a failed xcodebuild
           WS=$(ls -d ios/*.xcworkspace | head -1)
           SCHEME=$(basename "$WS" .xcworkspace)
           echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"

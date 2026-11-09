@@ -7,8 +7,8 @@ import UIKit
 // shapes, so modules/health-store/index.ts is identical on both platforms.
 // Times cross the bridge as epoch milliseconds (Double).
 
-/// HealthKit stores are thread-safe; one shared instance for the module.
-nonisolated(unsafe) private let store = HKHealthStore()
+/// HealthKit stores are thread-safe (HKHealthStore is Sendable); one shared instance.
+private let store = HKHealthStore()
 private let stepType = HKQuantityType(.stepCount)
 /// Our own id per record ("fake-<start>-<end>"). A custom key rather than
 /// HKMetadataKeySyncIdentifier, which would make HealthKit replace/ignore duplicates.
@@ -143,11 +143,14 @@ public class HealthStoreModule: Module {
     }
 
     /// Opens the Health app (permissions live under Sharing → Apps there).
+    /// Sync like on Android; UIKit work is hopped onto the main actor.
     Function("openHealthSettings") {
-      if let url = URL(string: "x-apple-health://") {
-        UIApplication.shared.open(url)
+      Task { @MainActor in
+        if let url = URL(string: "x-apple-health://") {
+          _ = await UIApplication.shared.open(url)
+        }
       }
-    }.runOnQueue(.main)
+    }
   }
 }
 
