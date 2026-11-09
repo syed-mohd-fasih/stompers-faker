@@ -1,9 +1,14 @@
-# Builds a signed release APK and publishes it as a GitHub Release.
+# Builds the app for both platforms and publishes a GitHub Release.
+#
+#   android  → signed release APK (arm64)            stompers-faker-vX.apk  (+ .sha256)
+#   ios      → unsigned IPA for SideStore/AltStore   stompers-faker-vX.ipa  (+ .sha256)
+#              (ad-hoc signed only to embed the HealthKit entitlement; SideStore re-signs
+#               it with the user's own Apple ID)
+#   publish  → creates the release with whatever built (APK is required, IPA optional)
 #
 # Trigger: push a tag like v1.2.3 whose number matches "version" in app.json
 #   (bump app.json → commit → git tag v1.2.3 → git push origin v1.2.3)
-# Or run it by hand from the Actions tab ("Run workflow") to get the APK as an
-# artifact without creating a release.
+# Or "Run workflow" in the Actions tab: builds both as downloadable artifacts, no release.
 #
 # Required repository secrets (Settings → Secrets and variables → Actions):
 #   ANDROID_KEYSTORE_BASE64   base64 of the release .jks
@@ -11,7 +16,7 @@
 #   ANDROID_KEY_ALIAS         key alias
 #   ANDROID_KEY_PASSWORD      key password
 
-name: Release APK
+name: Release
 
 on:
   push:
@@ -26,14 +31,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  version:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    outputs:
+      version: ${{ steps.v.outputs.version }}
     steps:
       - uses: actions/checkout@v7
-
-      - name: Read app version
-        id: version
+      - id: v
         run: |
           VERSION=$(node -p "require('./app.json').expo.version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -41,6 +45,15 @@ jobs:
             echo "::error::Tag $GITHUB_REF_NAME doesn't match app.json version $VERSION"
             exit 1
           fi
+
+  android:
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NAME: stompers-faker-v${{ needs.version.outputs.version }}.apk
+    steps:
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v6
         with:
@@ -79,32 +92,93 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
 
-      - name: Rename APK + checksum
-        id: apk
+      - name: Rename + checksum
         run: |
-          NAME="stompers-faker-v${{ steps.version.outputs.version }}.apk"
           mv android/app/build/outputs/apk/release/app-release.apk "$NAME"
           sha256sum "$NAME" > "$NAME.sha256"
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.apk.outputs.name }}
+          name: android
           path: |
-            ${{ steps.apk.outputs.name }}
-            ${{ steps.apk.outputs.name }}.sha256
-
-      - name: Publish GitHub Release
-        if: github.ref_type == 'tag'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" \
-            "${{ steps.apk.outputs.name }}" "${{ steps.apk.outputs.name }}.sha256" \
-            --title "Stompers Faker $GITHUB_REF_NAME" \
-            --generate-notes
+            ${{ env.NAME }}
+            ${{ env.NAME }}.sha256
 
       - name: Remove signing material
         if: always()
         run: rm -f keystore.properties "$RUNNER_TEMP/release.jks"
+
+  ios:
+    needs: version
+    runs-on: macos-latest
+    timeout-minutes: 90
+    env:
+      NAME: stompers-faker-v${{ needs.version.outputs.version }}.ipa
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate native project (runs pod install)
+        run: bunx expo prebuild --platform ios
+
+      - name: Build unsigned archive
+        run: |
+          WS=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
+          xcodebuild archive \
+            -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/app.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            | tail -n 40
+
+      - name: Package IPA (ad-hoc signed with entitlements)
+        run: |
+          APP=$(ls -d "$RUNNER_TEMP"/app.xcarchive/Products/Applications/*.app | head -1)
+          ENT=$(ls ios/"$SCHEME"/*.entitlements | head -1)
+          # Without a signature the HealthKit entitlement isn't embedded, and SideStore
+          # wouldn't request it when re-signing. "-" = ad-hoc identity.
+          codesign --force --sign - --entitlements "$ENT" "$APP"
+          codesign -d --entitlements - "$APP" | grep -q healthkit
+          mkdir -p Payload && cp -R "$APP" Payload/
+          zip -qry "$NAME" Payload
+          shasum -a 256 "$NAME" > "$NAME.sha256"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ios
+          path: |
+            ${{ env.NAME }}
+            ${{ env.NAME }}.sha256
+
+  publish:
+    needs: [version, android, ios]
+    # Release as soon as the APK exists; the IPA is attached when its build succeeded.
+    if: github.ref_type == 'tag' && always() && needs.android.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -la dist
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "Stompers Faker $GITHUB_REF_NAME" \
+            --generate-notes
